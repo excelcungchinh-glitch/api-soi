@@ -148,13 +148,19 @@ pre{margin:0;white-space:pre-wrap;word-break:break-all;font-family:var(--mono);f
       <span class="grow"></span><button id="btnCancelPaste" class="hide" style="margin-bottom:4px">✕ Đóng</button>
     </div>
     <div id="ptCap" class="hide">
-      <div class="muted" style="margin-bottom:6px">Tool tự ghi lại các API mà trang hệ thống gọi <b>sau khi bạn bấm 📌</b>. Cách dùng: bấm <b>✕ Thu nhỏ tool</b> → thao tác trên hệ thống (bấm Tìm kiếm, mở màn hình…) → bấm 📌 quay lại → chọn API bên dưới.</div>
+      <div class="note n-info row" style="margin-top:0">
+        <button class="btn-pri btn-run" id="btnCapture">🎯 Bắt API</button>
+        <span>Bấm nút này → tool thu nhỏ thành <b>nút nổi góc phải</b> → trên hệ thống bấm <b>Tìm kiếm</b> / mở màn hình cần soi → bấm nút nổi để quay lại → chọn API bên dưới.</span>
+      </div>
+      <div class="muted" id="capDiag" style="font-size:12.5px;margin-bottom:6px"></div>
       <div class="row" style="margin-bottom:8px">
         <input id="capQ" class="grow" placeholder="🔎 Lọc theo tên API… (vd OrderList)">
         <label class="muted"><input type="checkbox" id="capDedup" checked> Gộp API trùng</label>
         <button id="capClear">Xóa danh sách</button>
       </div>
       <div class="scroll" style="max-height:420px"><table><thead><tr><th>Lúc</th><th>Method</th><th>API</th><th>Kết quả</th><th></th></tr></thead><tbody id="capList"></tbody></table></div>
+      <details class="mt" id="pastBox"><summary><b>API trang đã gọi TRƯỚC khi bấm 📌</b> <span class="badge" id="pastCount">0</span> <span class="muted">— chỉ biết tên, không có body/token. Muốn nạp: bấm 🎯 rồi làm lại thao tác đó trên hệ thống.</span></summary>
+        <div class="scroll mt" style="max-height:260px"><table><tbody id="pastList"></tbody></table></div></details>
     </div>
     <div id="ptPaste">
       <div class="muted" style="margin-bottom:6px">F12 → Network → chuột phải dòng API → Copy → <b>Copy as fetch</b> (hoặc <b>Copy as cURL (bash)</b>, hoặc 1 link).</div>
@@ -241,12 +247,13 @@ const MODE = new URLSearchParams(location.search).has('bridge') && window.parent
   : /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? 'local' : 'web';
 let bridgeOrigin = null; const pendingReq = {};
 const FORBIDDEN_HDR = k => /^(cookie2?|host|content-length|connection|accept-encoding|accept-charset|referer|origin|user-agent|te|trailer|transfer-encoding|upgrade|via|keep-alive|expect|date|dnt|priority)$/i.test(k) || /^(sec-|proxy-)/i.test(k);
-let CAPS = [], capSupported = false, capSeen = 0;   // API bắt được từ trang hệ thống
+let CAPS = [], PAST = [], capSupported = false, capSeen = 0, bridgeVer = 0;   // API bắt được từ trang hệ thống
 if (MODE === 'bridge') {
   addEventListener('message', e => {
     if (e.source !== window.parent) return;
     const d = e.data || {};
-    if (d.type === 'ready') { bridgeOrigin = e.origin; capSupported = !!d.capture; CAPS = (d.log || []).slice(); renderMode(); initPasteTabs(); renderCaps(); }
+    if (d.type === 'ready') { bridgeOrigin = e.origin; capSupported = !!d.capture; bridgeVer = d.version || 1; CAPS = (d.log || []).slice(); PAST = d.past || []; renderMode(); initPasteTabs(); renderCaps(); }
+    if (d.type === 'shown' && !$('#pasteCard').classList.contains('hide') && !$('#ptCap').classList.contains('hide')) showPasteTab('cap');
     if (d.type === 'cap') { CAPS.push(d.item); if (CAPS.length > 200) CAPS.shift(); renderCaps(); }
     if ((d.type === 'res' || d.type === 'token') && pendingReq[d.id]) { pendingReq[d.id](d); delete pendingReq[d.id]; }
   });
@@ -283,6 +290,13 @@ function renderCaps() {
   const nb = $('#capNew'); const fresh = n - capSeen;
   nb.textContent = fresh > 0 ? `+${fresh} API mới` : ''; nb.classList.toggle('hide', !(fresh > 0));
   const tb = $('#capList'); if (!tb) return;
+  const noise = CAPS.length - n;
+  $('#capDiag').innerHTML = capSupported
+    ? `${bridgeVer >= 2 ? '🟢' : '🟡'} Đang bắt API trên trang · đã thấy <b>${CAPS.length}</b> request${noise ? ` (ẩn ${noise} file tĩnh/OPTIONS)` : ''}${bridgeVer < 2 ? ' · bridge cũ — tải lại trang hệ thống (F5) rồi bấm 📌 để dùng bản mới' : ''}`
+    : '';
+  $('#pastCount').textContent = PAST.length;
+  $('#pastBox').classList.toggle('hide', !PAST.length);
+  $('#pastList').innerHTML = [...PAST].reverse().map(p => `<tr><td class="muted" style="white-space:nowrap">${new Date(p.time).toLocaleTimeString('vi-VN')}</td><td><b class="mono">${esc(capName(p))}</b><div class="muted mono" style="font-size:11.5px">${esc(p.url.length > 110 ? p.url.slice(0, 110) + '…' : p.url)}</div></td><td class="muted">${p.ms} ms</td></tr>`).join('');
   if (!capSupported) { tb.innerHTML = `<tr><td colspan="5" class="empty">Bookmark 📌 bạn đang dùng là bản cũ, chưa bắt được API.<br>Mở <a href="${esc(location.href.split('?')[0])}" target="_blank">trang tool</a>, kéo lại nút <b>📌 API Soi</b> mới lên thanh dấu trang (thay cái cũ).</td></tr>`; return; }
   const rows = capRows();
   tb.innerHTML = rows.length ? rows.map(({c, i, n}) => {
@@ -292,7 +306,7 @@ function renderCaps() {
       <td><b class="mono" style="word-break:break-all">${esc(capName(c))}</b>${n > 1 ? ` <span class="badge">×${n}</span>` : ''}<div class="muted mono" style="font-size:11.5px">${esc(c.url.length > 110 ? c.url.slice(0, 110) + '…' : c.url)}</div></td>
       <td style="white-space:nowrap"><span class="badge ${cls}">${st || 'lỗi'}</span> <span class="muted">${c.ms ?? '?'} ms</span></td>
       <td><button class="btn-pri" data-cap="${i}">Nạp</button></td></tr>`;
-  }).join('') : '<tr><td colspan="5" class="empty">Chưa bắt được API nào.<br>Bấm <b>✕ Thu nhỏ tool</b> → thao tác trên hệ thống → bấm 📌 quay lại.</td></tr>';
+  }).join('') : '<tr><td colspan="5" class="empty">Chưa bắt được API nào.<br>Bấm <b>🎯 Bắt API</b> ở trên → trên hệ thống bấm <b>Tìm kiếm</b> → bấm nút nổi góc phải để quay lại.</td></tr>';
 }
 function loadCap(i) {
   const c = CAPS[i];
@@ -331,7 +345,7 @@ function renderMode() {
   const m = $('#modeBar');
   if (MODE === 'bridge') {
     m.className = 'modebar ' + (bridgeOrigin ? 'n-ok' : 'n-warn');
-    m.innerHTML = bridgeOrigin ? `🔗 Đang chạy trên <b>${esc(bridgeOrigin)}</b> — gọi API bằng phiên đăng nhập của trang này. <span class="grow"></span><button id="btnClose">✕ Thu nhỏ tool</button><span class="muted" style="font-size:12px">(bấm bookmark lần nữa để mở lại)</span>` : '⏳ Đang kết nối với trang hệ thống…';
+    m.innerHTML = bridgeOrigin ? `🔗 Đang chạy trên <b>${esc(bridgeOrigin)}</b> — gọi API bằng phiên đăng nhập của trang này. <span class="grow"></span><button id="btnClose">✕ Thu nhỏ tool</button><span class="muted" style="font-size:12px">(mở lại bằng nút nổi góc phải hoặc bookmark)</span>` : '⏳ Đang kết nối với trang hệ thống…';
     const c = $('#btnClose'); if (c) c.onclick = () => window.parent.postMessage({type: 'close'}, bridgeOrigin);
   } else if (MODE === 'local') {
     m.className = 'modebar n-info'; m.innerHTML = '💻 Đang chạy trên máy (Chay_API_Soi.bat) — gọi được mọi API.';
@@ -1270,6 +1284,7 @@ $('#btnNewPaste').onclick = () => {
 $('#btnCancelPaste').onclick = () => $('#pasteCard').classList.add('hide');
 $$('#pasteTabs [data-pt]').forEach(b => b.onclick = () => showPasteTab(b.dataset.pt));
 $('#capQ').oninput = renderCaps; $('#capDedup').onchange = renderCaps;
+$('#btnCapture').onclick = () => { if (bridgeOrigin) window.parent.postMessage({type: 'close'}, bridgeOrigin); };
 $('#capClear').onclick = () => { CAPS = []; capSeen = 0; renderCaps(); };
 $('#capList').onclick = e => { const b = e.target.closest('[data-cap]'); if (b) loadCap(+b.dataset.cap); };
 initPasteTabs();
