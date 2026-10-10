@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Soi</title>
+<style>
+:root{
+  --bg:#f3f5fb;--card:#fff;--fg:#1c2233;--muted:#6a7389;--line:#e3e7f0;--soft:#f1f4fa;
+  --brand:#4f46e5;--brand2:#06b6d4;--brand-soft:#eceafe;
+  --ok:#0f9d58;--ok-soft:#e2f6ea;--warn:#c27803;--warn-soft:#fff4d6;--bad:#d93025;--bad-soft:#fde7e5;
+  --info:#2563eb;--info-soft:#e7efff;
+  --c1:#7c3aed;--c2:#0e7490;--c3:#c2410c;--c4:#15803d;
+  --edited:#fff6cc;--edited-line:#f2c94c;
+  --shadow:0 1px 2px rgba(20,30,60,.05),0 4px 14px rgba(20,30,60,.06);
+  --mono:Consolas,"Cascadia Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10131b;--card:#191e2a;--fg:#e6e9f2;--muted:#929bb0;--line:#2a3142;--soft:#222937;
+  --brand:#8b84ff;--brand2:#3fd0e8;--brand-soft:#26244a;
+  --ok:#4ade80;--ok-soft:#163223;--warn:#fbbf24;--warn-soft:#3a2e10;--bad:#f87171;--bad-soft:#3d1d1d;
+  --info:#7aa7ff;--info-soft:#1d2a46;--c1:#b794ff;--c2:#5fd4e8;--c3:#ff9a5c;--c4:#6ee7a0;
+  --edited:#3a3214;--edited-line:#a8862a;--shadow:none;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+.top{background:linear-gradient(110deg,var(--brand),var(--brand2));color:#fff;padding:12px 0}
+.top .in{max-width:1280px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font-size:20px;letter-spacing:.3px}
+.top .sub{opacity:.85;font-size:13px}
+.top select,.top button{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.35)}
+.top select option{color:#000}
+.wrap{max-width:1280px;margin:0 auto;padding:14px 16px 30px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)}
+.mt{margin-top:12px}
+h3{font-size:14px;margin:0 0 8px}
+.muted{color:var(--muted)}
+textarea,input,select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
+textarea{width:100%;font-family:var(--mono);font-size:13px}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--brand-soft);border-color:var(--brand)}
+.mono{font-family:var(--mono);font-size:13px;word-break:break-all}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--brand)}
+button:disabled{opacity:.6;cursor:wait}
+.btn-pri{background:linear-gradient(110deg,var(--brand),var(--brand2));border:none;color:#fff;font-weight:600}
+.btn-run{font-size:15px;padding:8px 22px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:200px}
+.hide{display:none!important}
+/* thanh request */
+.reqbar{display:flex;gap:8px;align-items:center;padding:10px 12px}
+.reqbar select{font-weight:700;border-width:2px}
+.m-GET{color:var(--ok);border-color:var(--ok)!important}.m-POST{color:var(--info);border-color:var(--info)!important}
+.m-PUT,.m-PATCH{color:var(--warn);border-color:var(--warn)!important}.m-DELETE{color:var(--bad);border-color:var(--bad)!important}
+.loaded{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* tab chính */
+.tabs{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}
+.tab{border:1px solid var(--line);border-radius:99px;padding:7px 16px;font-weight:600;color:var(--muted);background:var(--card)}
+.tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.tab .cnt{display:inline-block;min-width:20px;padding:0 6px;border-radius:99px;font-size:11.5px;background:var(--soft);color:var(--fg);margin-left:4px}
+.tab.on .cnt{background:rgba(255,255,255,.25);color:#fff}
+.subtabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:10px}
+.stab{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;padding:6px 12px;font-weight:600;color:var(--muted)}
+.stab.on{color:var(--brand);border-bottom-color:var(--brand)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;border-radius:0;padding:5px 11px}
+.seg button.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+/* ô thông tin */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;border-left:4px solid var(--c);box-shadow:var(--shadow)}
+.tile .lb{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+.tile .vl{font-size:15px;font-weight:600;margin:2px 0;word-break:break-all}
+.tile .ds{font-size:12.5px;color:var(--muted)}
+.badge{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:600;background:var(--soft)}
+.b-ok{background:var(--ok-soft);color:var(--ok)}.b-warn{background:var(--warn-soft);color:var(--warn)}
+.b-bad{background:var(--bad-soft);color:var(--bad)}.b-info{background:var(--info-soft);color:var(--info)}.b-brand{background:var(--brand-soft);color:var(--brand)}
+.note{padding:9px 12px;border-radius:10px;margin:8px 0}
+.n-warn{background:var(--warn-soft);color:var(--warn)}.n-bad{background:var(--bad-soft);color:var(--bad)}
+.n-ok{background:var(--ok-soft);color:var(--ok)}.n-info{background:var(--info-soft);color:var(--info)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:12px;padding:2px 8px;border-radius:6px;background:var(--soft);font-family:var(--mono)}
+.chip b{color:var(--c1);font-weight:600}
+/* bảng */
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--soft);font-weight:600;font-size:13px;position:sticky;top:0;z-index:1}
+.scroll{max-height:calc(100vh - 300px);min-height:220px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.scroll td{font-size:13px}
+.grid td{white-space:nowrap;max-width:320px;overflow:hidden;text-overflow:ellipsis}
+.grp td{background:var(--soft);font-weight:600;color:var(--brand)}
+.explain{color:var(--muted);font-size:12.5px}
+tr.edited td{background:var(--edited)}
+tr.edited td:first-child{box-shadow:inset 4px 0 var(--edited-line)}
+.orig{font-size:12px;color:var(--warn);margin-top:3px}
+.orig button{padding:0 7px;font-size:12px;margin-left:4px}
+.bodyrow input[type=text],.bodyrow input[type=number],.bodyrow textarea{width:100%}
+.dt{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.dt small{color:var(--muted);font-family:var(--mono)}
+.err{border-color:var(--bad)!important}
+.urlparts{font-family:var(--mono);font-size:13px;padding:10px;background:var(--soft);border-radius:10px;word-break:break-all}
+.p1{color:var(--c1)}.p2{color:var(--c2);font-weight:700}.p3{color:var(--c3);font-weight:700}.p4{color:var(--c4)}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:3px 12px}
+.kv>div:nth-child(odd){color:var(--muted)}
+.status-big{font-size:18px;padding:5px 16px}
+.tree{font-family:var(--mono);font-size:12.5px;padding:8px}
+.tree details>div{padding-left:18px;border-left:1px dashed var(--line);margin-left:4px}
+.tree summary{cursor:pointer}
+.tedit{background:var(--edited);border-radius:4px}
+.modebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-radius:10px;margin-bottom:12px}
+.bm{display:inline-block;padding:6px 14px;border-radius:8px;background:linear-gradient(110deg,var(--brand),var(--brand2));color:#fff;font-weight:700;text-decoration:none;cursor:grab}
+.k{color:var(--c1)}.vs{color:var(--c4)}.vn{color:var(--c3)}.vb{color:var(--c2)}.vnull{color:var(--muted)}
+pre{margin:0;white-space:pre-wrap;word-break:break-all;font-family:var(--mono);font-size:12.5px}
+.codebox{background:var(--soft);padding:12px;border-radius:10px;max-height:calc(100vh - 320px);overflow:auto}
+.empty{text-align:center;padding:40px 10px;color:var(--muted)}
+.empty .ic{font-size:34px}
+.add td{background:var(--ok-soft)}.del td{background:var(--bad-soft)}
+.diffv{font-family:var(--mono);font-size:12.5px}
+.diffv s{color:var(--bad)}.diffv ins{color:var(--ok);text-decoration:none;font-weight:600}
+@media (max-width:700px){.kv{grid-template-columns:1fr}.hidem{display:none}.reqbar{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="top"><div class="in">
+  <div class="grow"><h1>🔍 API Soi</h1><div class="sub">Bóc tách · sửa · chạy thử · so sánh API</div></div>
+  <select id="hist"><option value="">🕘 Lịch sử đã chạy</option></select>
+  <button id="histClear" title="Xóa lịch sử lưu trên máy này">Xóa lịch sử</button>
+</div></div>
+
+<div class="wrap">
+  <div id="modeBar" class="modebar"></div>
+
+  <!-- Ô dán API -->
+  <div class="card" id="pasteCard">
+    <h3>📋 Dán API</h3>
+    <div class="muted" style="margin-bottom:6px">F12 → Network → chuột phải dòng API → Copy → <b>Copy as fetch</b> (hoặc <b>Copy as cURL (bash)</b>, hoặc 1 link).</div>
+    <textarea id="input" rows="6" placeholder='fetch("https://...", { "headers": {...}, "body": "...", "method": "POST" });'></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn-pri" id="btnParse">Bóc tách</button>
+      <button id="btnCancelPaste" class="hide">Hủy</button>
+      <span id="parseErr" class="note n-bad hide" style="margin:0"></span>
+    </div>
+  </div>
+
+  <div id="main" class="hide">
+    <div class="card loaded hide" id="loadedBar">
+      <span>📄 Đang soi: <b id="loadedName" class="mono"></b></span>
+      <span class="muted" id="loadedInfo"></span>
+      <span class="grow"></span>
+      <button id="btnNewPaste">📋 Dán API khác</button>
+    </div>
+
+    <div class="card reqbar mt">
+      <select id="method"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select>
+      <input id="url" class="grow mono" spellcheck="false">
+      <button class="btn-pri btn-run" id="btnSend">▶ Chạy thử</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab on" data-tab="tOv">📊 Tổng quan</button>
+      <button class="tab" data-tab="tBody">✏️ Body &amp; bộ lọc <span class="cnt" id="cntBody"></span></button>
+      <button class="tab" data-tab="tHdr">🔑 Headers <span class="cnt" id="cntHdr"></span></button>
+      <button class="tab" data-tab="tRes">📦 Kết quả <span id="cntRes"></span></button>
+      <button class="tab" data-tab="tCmp">⚖️ So sánh <span class="cnt" id="cntCmp">0</span></button>
+      <button class="tab" data-tab="tCode">💻 Xuất code</button>
+    </div>
+
+    <section id="tOv"></section>
+    <section id="tBody" class="hide"><div class="card" id="bodyCard"></div></section>
+    <section id="tHdr" class="hide"><div class="card" id="hdrCard"></div></section>
+    <section id="tRes" class="hide"><div class="card" id="respCard"></div></section>
+    <section id="tCmp" class="hide"><div class="card" id="cmpCard"></div></section>
+    <section id="tCode" class="hide">
+      <div class="card">
+        <div class="row" style="margin-bottom:8px">
+          <select id="codeLang">
+            <option value="pq">Excel Power Query (M)</option>
+            <option value="py">Python (requests)</option>
+            <option value="curl">cURL (bash)</option>
+            <option value="ps">PowerShell</option>
+            <option value="js">JavaScript fetch</option>
+          </select>
+          <button id="btnCopyCode">Chép</button>
+          <span class="muted" id="codeHint"></span>
+        </div>
+        <div class="codebox"><pre id="code"></pre></div>
+        <div class="note n-warn">Code có chứa token đăng nhập của bạn — không gửi cho người khác.</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const VN = d => d.toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh', hour12:false});
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/;
+const ISO_TZ_RE = /(Z|[+-]\d{2}:?\d{2})$/;
+const VN_OFFSET = 7 * 3600e3;
+const clone = o => o === undefined ? undefined : JSON.parse(JSON.stringify(o));
+const isPlain = v => v && typeof v === 'object' && !Array.isArray(v);
+const pkey = p => JSON.stringify(p);
+
+let S = null;          // request đang soi: {url, method, headers:[{k,v,on}], body, bodyObj, origObj, referrer}
+let R = null;          // response gần nhất
+let RUNS = [];         // các lần chạy trong phiên (để so sánh)
+let arrPick = 0, tableQ = '';
+let bodyView = 'set', bodyGroup = null, bodyQ = '';
+let resView = 'table';
+
+/* ================= CÁCH GỌI API =================
+   - bridge: tool nằm trong iframe trên trang hệ thống (mở bằng nút bookmark) → nhờ trang hệ thống gọi API (không bị CORS chặn)
+   - local : chạy qua server.js trên máy → gọi qua /proxy
+   - web   : mở thẳng trên GitHub Pages → chỉ gọi được API cho phép mọi trang */
+const MODE = new URLSearchParams(location.search).has('bridge') && window.parent !== window ? 'bridge'
+  : /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? 'local' : 'web';
+let bridgeOrigin = null; const pendingReq = {};
+const FORBIDDEN_HDR = k => /^(cookie2?|host|content-length|connection|accept-encoding|accept-charset|referer|origin|user-agent|te|trailer|transfer-encoding|upgrade|via|keep-alive|expect|date|dnt|priority)$/i.test(k) || /^(sec-|proxy-)/i.test(k);
+if (MODE === 'bridge') {
+  addEventListener('message', e => {
+    if (e.source !== window.parent) return;
+    const d = e.data || {};
+    if (d.type === 'ready') { bridgeOrigin = e.origin; renderMode(); }
+    if (d.type === 'res' && pendingReq[d.id]) { pendingReq[d.id](d); delete pendingReq[d.id]; }
+  });
+  window.parent.postMessage({type: 'hello'}, '*');
+}
+function bookmarkletHref() {
+  const O = location.origin, U = location.origin + location.pathname;
+  const src = `(()=>{const O=${JSON.stringify(O)},U=${JSON.stringify(U)};let f=window.__apisoi;if(f){f.style.display=f.style.display==='none'?'block':'none';return}f=document.createElement('iframe');f.src=U+'?bridge=1';f.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;border:0;z-index:2147483647;background:#f3f5fb';document.body.appendChild(f);window.__apisoi=f;addEventListener('message',async e=>{if(e.origin!==O||e.source!==f.contentWindow)return;const d=e.data||{},P=m=>f.contentWindow.postMessage(m,O);if(d.type==='hello')return P({type:'ready'});if(d.type==='close'){f.style.display='none';return}if(d.type!=='req')return;const t=Date.now();try{const r=await fetch(d.url,{method:d.method,headers:d.headers,body:d.body||undefined,credentials:'include'});const b=await r.arrayBuffer();P({type:'res',id:d.id,status:r.status,statusText:r.statusText,headers:Object.fromEntries(r.headers),body:new TextDecoder().decode(b),size:b.byteLength,timeMs:Date.now()-t})}catch(x){P({type:'res',id:d.id,networkError:String(x),timeMs:Date.now()-t})}})})()`;
+  return 'javascript:' + encodeURIComponent(src);
+}
+function renderMode() {
+  const m = $('#modeBar');
+  if (MODE === 'bridge') {
+    m.className = 'modebar ' + (bridgeOrigin ? 'n-ok' : 'n-warn');
+    m.innerHTML = bridgeOrigin ? `🔗 Đang chạy trên <b>${esc(bridgeOrigin)}</b> — gọi API bằng phiên đăng nhập của trang này. <span class="grow"></span><button id="btnClose">✕ Thu nhỏ tool</button><span class="muted" style="font-size:12px">(bấm bookmark lần nữa để mở lại)</span>` : '⏳ Đang kết nối với trang hệ thống…';
+    const c = $('#btnClose'); if (c) c.onclick = () => window.parent.postMessage({type: 'close'}, bridgeOrigin);
+  } else if (MODE === 'local') {
+    m.className = 'modebar n-info'; m.innerHTML = '💻 Đang chạy trên máy (Chay_API_Soi.bat) — gọi được mọi API.';
+  } else if (location.protocol === 'file:') {
+    m.className = 'modebar n-bad'; m.innerHTML = 'Bạn đang mở file trực tiếp — không chạy thử được. Hãy mở bản web (GitHub Pages) hoặc chạy <b>Chay_API_Soi.bat</b>.';
+  } else {
+    m.className = 'modebar n-warn';
+    m.innerHTML = `<div><b>⚠ Đang mở trực tiếp trên web</b> — API công ty sẽ bị chặn (chỉ cho trang hệ thống gọi). Cài nút bookmark 1 lần:
+      <ol style="margin:6px 0 0;padding-left:20px"><li>Bật thanh dấu trang: <b>Ctrl+Shift+B</b></li>
+      <li><b>Kéo thả</b> nút này lên thanh dấu trang: <a class="bm" id="bmLink" href="#" onclick="alert('Đừng bấm — hãy KÉO nút này thả lên thanh dấu trang.');return false">📌 API Soi</a></li>
+      <li>Mở hệ thống (vd indotrucking.smartlogvn.com), đăng nhập → bấm <b>📌 API Soi</b> trên thanh dấu trang → tool hiện ra và gọi API được.</li></ol></div>`;
+    $('#bmLink').setAttribute('href', bookmarkletHref());
+  }
+}
+renderMode();
+async function doRequest(spec) {
+  if (MODE === 'local') {
+    try { return await (await fetch('/proxy', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(spec)})).json(); }
+    catch (e) { return {networkError: 'Không kết nối được tới tool. Cửa sổ đen (Chay_API_Soi.bat) còn mở không? ' + e.message}; }
+  }
+  const headers = Object.fromEntries(Object.entries(spec.headers).filter(([k]) => !FORBIDDEN_HDR(k)));
+  const body = ['GET', 'HEAD'].includes(spec.method) ? undefined : (spec.body || undefined);
+  if (MODE === 'bridge') {
+    if (!bridgeOrigin) return {networkError: 'Chưa kết nối được với trang hệ thống. Tải lại trang hệ thống rồi bấm bookmark lại.'};
+    return new Promise(res => {
+      const id = Math.random().toString(36).slice(2);
+      pendingReq[id] = res;
+      window.parent.postMessage({type: 'req', id, url: spec.url, method: spec.method, headers, body}, bridgeOrigin);
+      setTimeout(() => { if (pendingReq[id]) { delete pendingReq[id]; res({networkError: 'Quá 3 phút không có phản hồi'}); } }, 180000);
+    });
+  }
+  const t = Date.now();
+  try {
+    const r = await fetch(spec.url, {method: spec.method, headers, body});
+    const b = await r.arrayBuffer();
+    return {status: r.status, statusText: r.statusText, headers: Object.fromEntries(r.headers), body: new TextDecoder().decode(b), size: b.byteLength, timeMs: Date.now() - t};
+  } catch (e) {
+    return {networkError: 'Bị trình duyệt chặn (CORS) — API này chỉ cho trang hệ thống gọi. Hãy mở hệ thống rồi bấm nút bookmark 📌 API Soi (hướng dẫn ở đầu trang).', timeMs: Date.now() - t};
+  }
+}
+
+/* ================= ĐỌC INPUT ================= */
+function parseInput(t) {
+  t = t.trim();
+  if (/^(await\s+)?fetch\s*\(/.test(t)) return parseFetch(t.replace(/^await\s+/, ''));
+  if (/^curl(\.exe)?\s/i.test(t)) return parseCurl(t);
+  if (/^https?:\/\//i.test(t)) return {url: t.split(/\s/)[0], method: 'GET', headers: [], body: '', referrer: ''};
+  throw new Error('Không nhận ra định dạng. Hãy dán "Copy as fetch" hoặc "Copy as cURL (bash)" từ DevTools, hoặc 1 đường link http...');
+}
+function parseFetch(t) {
+  const m = t.match(/^fetch\s*\(\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`[^`]*`)\s*(?:,\s*([\s\S]*?))?\s*\)\s*;?\s*$/);
+  if (!m) throw new Error('Đoạn fetch không đúng dạng — hãy copy lại nguyên văn từ DevTools.');
+  const url = m[1][0] === '"' ? JSON.parse(m[1]) : m[1].slice(1, -1);
+  let opts = {};
+  if (m[2]) {
+    try { opts = JSON.parse(m[2]); }
+    catch { opts = Function('"use strict";return (' + m[2] + ')')(); }
+  }
+  return {
+    url, method: (opts.method || 'GET').toUpperCase(),
+    headers: Object.entries(opts.headers || {}).map(([k, v]) => ({k, v: String(v), on: true})),
+    body: typeof opts.body === 'string' ? opts.body : (opts.body == null ? '' : JSON.stringify(opts.body)),
+    referrer: opts.referrer || ''
+  };
+}
+function shellTokens(s) {
+  if (/\^"/.test(s) || /\^\r?\n/.test(s)) s = s.replace(/\^\r?\n/g, ' ').replace(/\^(.)/g, '$1'); // định dạng cmd của Windows
+  s = s.replace(/\\\r?\n/g, ' ');
+  const out = []; let i = 0, cur = null;
+  const push = () => { if (cur !== null) { out.push(cur); cur = null; } };
+  while (i < s.length) {
+    const c = s[i];
+    if (/\s/.test(c)) { push(); i++; continue; }
+    if (cur === null) cur = '';
+    if (c === "'") { const j = s.indexOf("'", i + 1); if (j < 0) throw new Error('Thiếu dấu nháy đóng trong cURL'); cur += s.slice(i + 1, j); i = j + 1; continue; }
+    if (c === '$' && s[i + 1] === "'") {
+      i += 2;
+      while (i < s.length && s[i] !== "'") {
+        if (s[i] === '\\') {
+          const n = s[i + 1];
+          if (n === 'u') { cur += String.fromCharCode(parseInt(s.substr(i + 2, 4), 16)); i += 6; continue; }
+          if (n === 'x') { cur += String.fromCharCode(parseInt(s.substr(i + 2, 2), 16)); i += 4; continue; }
+          cur += ({n: '\n', t: '\t', r: '\r'})[n] ?? n; i += 2;
+        } else cur += s[i++];
+      }
+      i++; continue;
+    }
+    if (c === '"') { i++; while (i < s.length && s[i] !== '"') { if (s[i] === '\\' && i + 1 < s.length) { cur += s[i + 1]; i += 2; } else cur += s[i++]; } i++; continue; }
+    if (c === '\\') { cur += s[i + 1] || ''; i += 2; continue; }
+    cur += c; i++;
+  }
+  push(); return out;
+}
+function parseCurl(t) {
+  const tk = shellTokens(t);
+  let url = '', method = '', body = null; const headers = [];
+  for (let i = 1; i < tk.length; i++) {
+    const a = tk[i], next = () => tk[++i];
+    if (a === '-X' || a === '--request') method = next();
+    else if (a === '-H' || a === '--header') { const h = next(), p = h.indexOf(':'); if (p > 0) headers.push({k: h.slice(0, p).trim(), v: h.slice(p + 1).trim(), on: true}); }
+    else if (['-d', '--data', '--data-raw', '--data-binary', '--data-ascii', '--data-urlencode'].includes(a)) { const d = next(); body = body == null ? d : body + '&' + d; }
+    else if (a === '-b' || a === '--cookie') headers.push({k: 'cookie', v: next(), on: true});
+    else if (a === '-A' || a === '--user-agent') headers.push({k: 'user-agent', v: next(), on: true});
+    else if (a === '-e' || a === '--referer') headers.push({k: 'referer', v: next(), on: true});
+    else if (a === '--url') url = next();
+    else if (a.startsWith('-')) { if (['-u', '--user', '-o', '--output', '-m', '--max-time', '--connect-timeout', '-x', '--proxy'].includes(a)) i++; }
+    else if (!url) url = a;
+  }
+  if (!url) throw new Error('Không tìm thấy địa chỉ URL trong cURL');
+  return {url, method: (method || (body != null ? 'POST' : 'GET')).toUpperCase(), headers, body: body ?? '', referrer: ''};
+}
+
+/* ================= TỪ ĐIỂN GIẢI THÍCH ================= */
+const WORDS = {Date:'ngày',From:'từ',To:'đến',Vehicle:'xe',Veh:'xe',Order:'đơn hàng',Status:'trạng thái',Location:'điểm',Province:'tỉnh',District:'quận/huyện',
+  Customer:'khách hàng',Vendor:'nhà xe',Driver:'tài xế',Show:'hiện',Code:'mã',Trouble:'phát sinh',Delivery:'giao hàng',Partner:'đối tác',Area:'khu vực',
+  Product:'hàng hóa',Group:'nhóm',Type:'loại',Master:'chuyến',Warning:'cảnh báo',Service:'dịch vụ',Transport:'vận chuyển',Mode:'phương thức',Route:'tuyến',
+  Map:'bản đồ',Detail:'chi tiết',Optimize:'tối ưu',Time:'thời gian',Start:'bắt đầu',Complete:'hoàn thành',Hours:'số giờ',Branch:'chi nhánh',Owner:'sở hữu',
+  Load:'tải',Sort:'thứ tự',Station:'trạm',Fleet:'đội xe',Temp:'tạm',Auto:'tự động',Refresh:'làm mới',Interval:'chu kỳ',Filter:'lọc',Payer:'người trả tiền',
+  Vessel:'tàu',Special:'đặc biệt',Issue:'vấn đề',Plan:'kế hoạch',Office:'văn phòng',Number:'số',Promotion:'khuyến mãi',Integration:'tích hợp',Lock:'khóa',
+  Confirm:'xác nhận',Check:'kiểm tra',Package:'kiện',Temperature:'nhiệt độ',Full:'toàn',Screen:'màn hình',Keep:'giữ',In:'trong',Btn:'nút',Estimate:'ước tính',
+  Mobile:'app mobile',GPS:'GPS',Name:'tên',Note:'ghi chú',Price:'giá',Fail:'lỗi',Visible:'hiển thị',Columns:'cột',Loading:'xếp hàng',Cancel:'hủy',Reload:'tải lại',
+  Error:'lỗi',Approve:'duyệt',Approved:'đã duyệt',Save:'lưu',Delete:'xóa',Add:'thêm',Edit:'sửa',View:'xem',List:'danh sách',Get:'lấy',Distribution:'phân phối',
+  Count:'số lượng',Total:'tổng',Quantity:'số lượng',Weight:'khối lượng',Trip:'chuyến',Cost:'chi phí',Action:'thao tác',Tender:'thầu',Contract:'hợp đồng'};
+function splitWords(k) { return String(k).replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').split(/\s+/).filter(Boolean); }
+function guessVN(k) {
+  const w = splitWords(k); let hit = 0;
+  const vn = w.map(x => { const t = WORDS[x] || WORDS[x[0].toUpperCase() + x.slice(1).toLowerCase()]; if (t) hit++; return t || x; });
+  return hit ? vn.join(' ') : '';
+}
+const HEADER_INFO = {
+  'accept': ['Kiểu dữ liệu muốn nhận về (thường là JSON).', 'nen'],
+  'accept-language': ['Ngôn ngữ mong muốn (vi-VN). Có thể ảnh hưởng chữ hiển thị trong dữ liệu.', 'nen'],
+  'authorization': ['Token đăng nhập. Thiếu hoặc hết hạn → 401. Giữ bí mật như mật khẩu!', 'can'],
+  'content-type': ['Kiểu dữ liệu của Body gửi đi (application/json = JSON).', 'can'],
+  'cookie': ['Cookie phiên đăng nhập — giữ bí mật.', 'nen'],
+  'referer': ['Trang web đang gọi API này.', 'bo'],
+  'origin': ['Tên miền trang web đang gọi API.', 'bo'],
+  'user-agent': ['Thông tin trình duyệt/máy.', 'bo'],
+  'priority': ['Độ ưu tiên tải do trình duyệt tự thêm.', 'bo'],
+  'x-requested-with': ['Đánh dấu request gọi từ JavaScript.', 'bo'],
+  'cache-control': ['Có dùng cache không.', 'bo'],
+  'pragma': ['Như cache-control (kiểu cũ).', 'bo'],
+  'd': ['Header riêng: tenant/khách hàng đang làm việc — server dựa vào đây để lấy đúng dữ liệu công ty.', 'can'],
+  'functionid': ['Header riêng: mã màn hình đang mở — dùng kiểm tra quyền.', 'can'],
+  'listactioncode': ['Header riêng: danh sách quyền thao tác trên màn hình này.', 'nen'],
+  'methodid': ['Header riêng: mã thao tác.', 'nen'],
+};
+const LEVEL = {can: ['Cần', 'b-bad'], nen: ['Nên giữ', 'b-warn'], bo: ['Bỏ được', 'b-ok']};
+const KENDO_OP = {eq:'bằng',neq:'khác',contains:'chứa',doesnotcontain:'không chứa',startswith:'bắt đầu bằng',endswith:'kết thúc bằng',
+  gt:'lớn hơn',gte:'lớn hơn hoặc bằng',lt:'nhỏ hơn',lte:'nhỏ hơn hoặc bằng',isnull:'trống',isnotnull:'không trống',isempty:'rỗng',isnotempty:'không rỗng'};
+function explainKendoFilter(f, short) {
+  if (!f) return 'Trống = không lọc thêm.';
+  const parts = f.replace(/[()]/g, '').split(/~(and|or)~/);
+  const out = [];
+  for (const x of parts) {
+    if (x === 'and') { out.push('<b>VÀ</b>'); continue; }
+    if (x === 'or') { out.push('<b>HOẶC</b>'); continue; }
+    const m = x.match(/^([^~]+)~([^~]+)(?:~(.*))?$/);
+    out.push(m ? `<b>${esc(m[1])}</b> ${esc(KENDO_OP[m[2]] || m[2])} <b>${esc(m[3] ?? '')}</b>` : esc(x));
+  }
+  return 'Lọc: ' + out.join(' ') + (short ? '' : '. <span class="muted">(cột~phép~giá_trị, nối bằng ~and~ / ~or~; xóa trống = bỏ lọc)</span>');
+}
+function explainField(key, val, path) {
+  const k = String(key), pk = path.join('.');
+  const g = guessVN(k);
+  const guess = g ? ` <span class="muted">≈ “${esc(g)}”</span>` : '';
+  if (/^request\.page$/i.test(pk)) return 'Trang số mấy (phân trang).';
+  if (/pageSize$/i.test(k)) return '<b>Số dòng mỗi trang.</b> Tăng lên (vd 500, 1000) để lấy nhiều hơn.';
+  if (/^request\.sort$/i.test(pk)) return 'Sắp xếp theo cột (vd <span class="mono">ETD-desc</span>). Trống = mặc định.';
+  if (/^request\.group$/i.test(pk)) return 'Gom nhóm. Trống = không gom.';
+  if (/^request\.filter$/i.test(pk)) return explainKendoFilter(val);
+  if (k === 'VisibleColumns') return `Các cột muốn server trả về (${Array.isArray(val) ? val.length : 0} cột).`;
+  if (typeof val === 'boolean' && /^(Is|Has)[A-Z]/.test(k)) return `Công tắc bật/tắt.${guess}`;
+  if (Array.isArray(val) && /^List/.test(k)) return (val.length ? `Đang lọc theo ${val.length} giá trị.` : 'Trống = <b>không lọc</b>.') + guess;
+  if (typeof val === 'string' && ISO_RE.test(val)) return `Thời điểm (server nhận giờ UTC, VN = UTC+7).${guess}`;
+  if (typeof val === 'number' && /ID$/.test(k) && val === -1) return `-1 thường = “tất cả”.${guess}`;
+  if (typeof val === 'number' && /ID$/.test(k) && val === 0) return `0 thường = “không chọn”.${guess}`;
+  if (val === null) return `null = không có giá trị.${guess}`;
+  if (val === '') return `Đang trống.${guess}`;
+  return g ? `≈ “${esc(g)}”` : '';
+}
+function endpointKind(name) {
+  if (/(Delete|Remove|Del)(_|$|[A-Z])/i.test(name)) return ['XÓA dữ liệu', 'bad'];
+  if (/(Save|Update|Edit|Insert|Create|Add|Approve|UnApprove|Import|Upload|Lock|Confirm|Cancel)/i.test(name)) return ['LƯU / THAY ĐỔI dữ liệu', 'bad'];
+  if (/(List|Get|View|Read|Search|Find|Detail|Report|Export|Download)/i.test(name)) return ['xem / đọc dữ liệu', 'ok'];
+  return ['', ''];
+}
+const METHOD_INFO = {
+  GET: 'Lấy dữ liệu về, thông số nằm trên link.',
+  POST: 'Gửi Body lên server — dùng để gửi bộ lọc lấy danh sách, hoặc để lưu.',
+  PUT: 'Cập nhật dữ liệu.', PATCH: 'Sửa một phần dữ liệu.', DELETE: 'Xóa dữ liệu.'
+};
+const STATUS_INFO = {
+  200: 'Thành công.', 201: 'Đã tạo mới thành công.', 204: 'Thành công nhưng không có dữ liệu trả về.',
+  301: 'Địa chỉ đã chuyển chỗ.', 302: 'Bị chuyển hướng (thường do chưa đăng nhập).', 304: 'Dữ liệu không đổi so với lần trước.',
+  400: 'Server không hiểu dữ liệu gửi lên — thường do Body sai cú pháp / sai kiểu (vd chữ vào ô số).',
+  401: 'Chưa đăng nhập hoặc TOKEN HẾT HẠN. Copy fetch mới từ DevTools rồi dán lại.',
+  403: 'Không có quyền. Kiểm tra header functionid / d hoặc quyền tài khoản.',
+  404: 'Sai địa chỉ — không có chức năng này.', 405: 'Sai phương thức (vd phải POST mà gửi GET).',
+  408: 'Server chờ quá lâu.', 413: 'Dữ liệu gửi lên quá lớn.', 415: 'Sai content-type.',
+  429: 'Gọi quá nhiều lần quá nhanh — đợi rồi thử lại.',
+  500: 'Lỗi phía server — hay gặp khi Body thiếu/sai trường. Xem thông báo lỗi bên dưới.',
+  502: 'Cổng trung gian lỗi.', 503: 'Server bận hoặc bảo trì.', 504: 'Server xử lý quá lâu. Thử giảm pageSize / thu hẹp ngày.'
+};
+
+/* ================= TIỆN ÍCH BODY ================= */
+function getAt(o, p) { for (const k of p) { if (o == null) return undefined; o = o[k]; } return o; }
+function setAt(o, p, v) { for (let i = 0; i < p.length - 1; i++) o = o[p[i]]; o[p[p.length - 1]] = v; }
+function leaves(o, p = [], out = []) { if (isPlain(o)) { for (const [k, v] of Object.entries(o)) leaves(v, p.concat(k), out); } else out.push([p, o]); return out; }
+const isEmptyVal = v => v === null || v === undefined || v === '' || v === false || (Array.isArray(v) && !v.length);
+function editedSet() {
+  const s = new Set(); if (!S.origObj || S.bodyObj === undefined) return s;
+  for (const [p, v] of leaves(S.bodyObj)) if (JSON.stringify(getAt(S.origObj, p)) !== JSON.stringify(v)) s.add(pkey(p));
+  return s;
+}
+function shortVal(v) {
+  if (typeof v === 'string' && ISO_RE.test(v) && ISO_TZ_RE.test(v)) return VN(new Date(v));
+  const t = typeof v === 'string' ? `"${v}"` : JSON.stringify(v);
+  return t === undefined ? '(không có)' : t.length > 70 ? t.slice(0, 70) + '…' : t;
+}
+const isoToVnInput = iso => new Date(new Date(iso).getTime() + VN_OFFSET).toISOString().slice(0, 16);
+const vnInputToIso = v => new Date(new Date(v + ':00Z').getTime() - VN_OFFSET).toISOString();
+
+/* ================= JWT ================= */
+function decodeJwt(tok) {
+  const p = tok.split('.'); if (p.length !== 3) return null;
+  try {
+    const b = atob(p[1].replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(p[1].length / 4) * 4, '='));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0))));
+  } catch { return null; }
+}
+function fmtLeft(sec) {
+  if (sec <= 0) return 'ĐÃ HẾT HẠN';
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+  return (d ? d + ' ngày ' : '') + (h ? h + ' giờ ' : '') + m + ' phút';
+}
+function hdr(name) { const h = S.headers.find(h => h.on && h.k.toLowerCase() === name); return h ? h.v : ''; }
+function jwtInfo() { const a = hdr('authorization'); return a ? decodeJwt(a.replace(/^Bearer\s+/i, '')) : null; }
+function safeURL(u) { try { return new URL(u); } catch { return null; } }
+function endpointName() { const u = safeURL(S.url); return u ? u.pathname.split('/').filter(Boolean).pop() || u.host : S.url; }
+
+/* ================= TAB TỔNG QUAN ================= */
+function tile(color, label, value, desc) { return `<div class="tile" style="--c:${color}"><div class="lb">${label}</div><div class="vl">${value}</div>${desc ? `<div class="ds">${desc}</div>` : ''}</div>`; }
+function renderOverview() {
+  const u = safeURL(S.url);
+  const segs = u ? u.pathname.split('/').filter(Boolean) : [];
+  const ep = segs[segs.length - 1] || '';
+  const [kind, kc] = endpointKind(ep);
+  const j = jwtInfo(), left = j && j.exp ? j.exp - Date.now() / 1000 : null;
+  const req = isPlain(S.bodyObj) && isPlain(S.bodyObj.request) ? S.bodyObj.request : null;
+  const isProd = u && /prod/i.test(u.host);
+  let t = '<div class="tiles">';
+  t += tile('var(--info)', 'Phương thức', `<span class="badge m-${S.method}" style="border:1px solid">${esc(S.method)}</span>`, METHOD_INFO[S.method] || '');
+  t += tile(isProd ? 'var(--bad)' : 'var(--c2)', 'Máy chủ', `<span class="mono">${esc(u ? u.host : '?')}</span>`, isProd ? '<span class="badge b-bad">MÔI TRƯỜNG THẬT (prod)</span>' : '');
+  t += tile('var(--c3)', 'Chức năng', `<span class="mono">${esc(ep)}</span>`,
+    (segs.length > 1 ? `Nhóm <b class="mono">${esc(segs[segs.length - 2])}</b> · ` : '') + (kind ? `<span class="badge ${kc === 'bad' ? 'b-bad' : 'b-ok'}">${kind}</span>` : '') + (guessVN(ep) ? `<br>≈ “${esc(guessVN(ep))}”` : ''));
+  if (j) t += tile(left == null ? 'var(--c2)' : left > 86400 ? 'var(--ok)' : left > 0 ? 'var(--warn)' : 'var(--bad)', 'Tài khoản & token', esc(j.email || j.name || j.sub),
+    left == null ? 'Token không có hạn dùng' : left > 0 ? `Còn hạn <b>${fmtLeft(left)}</b> (đến ${VN(new Date(j.exp * 1000))})` : '<b>Token ĐÃ HẾT HẠN</b> — copy fetch mới');
+  if (hdr('d')) t += tile('var(--c1)', 'Tenant · màn hình', `<span class="mono">${esc(hdr('d'))}</span>`, hdr('functionid') ? `functionid = <b>${esc(hdr('functionid'))}</b>` : '');
+  if (req) t += tile('var(--brand)', 'Phân trang & lọc lưới', `Trang ${esc(req.page)} · ${esc(req.pageSize)} dòng/trang`, explainKendoFilter(req.filter, true));
+  t += '</div>';
+
+  if (kc === 'bad') t += `<div class="note n-bad">⚠ Chức năng này có vẻ <b>${kind}</b> — chạy thử có thể thay đổi dữ liệu thật. Tool sẽ hỏi lại trước khi chạy.</div>`;
+
+  // Bộ lọc đang dùng
+  if (isPlain(S.bodyObj)) {
+    const ed = editedSet();
+    const used = leaves(S.bodyObj).filter(([p, v]) => !isEmptyVal(v) && p[p.length - 1] !== 'VisibleColumns' && p[0] !== 'request');
+    t += `<div class="card mt"><h3>🎯 Body đang dùng ${used.length} trường có giá trị${ed.size ? ` · <span class="badge b-warn">${ed.size} trường bạn đã sửa</span>` : ''}</h3>
+      <div class="chips">${used.map(([p, v]) => `<span class="chip" ${ed.has(pkey(p)) ? 'style="background:var(--edited)"' : ''}><b>${esc(p[p.length - 1])}</b> = ${esc(shortVal(v))}</span>`).join('') || '<span class="muted">Không có</span>'}</div>
+      <div class="row" style="margin-top:8px"><button data-goto="tBody">✏️ Sửa body</button></div></div>`;
+  }
+
+  // URL
+  if (u) {
+    const pathHtml = segs.map((s, i) => `<span class="${i === segs.length - 1 ? 'p3' : 'p4'}">${esc(s)}</span>`).join('/');
+    const qs = [...u.searchParams.entries()];
+    t += `<div class="card mt"><h3>🔗 Địa chỉ (URL)</h3>
+      <div class="urlparts"><span class="p1">${esc(u.protocol)}//</span><span class="p2">${esc(u.host)}</span>/${pathHtml}${u.search ? `<span class="p1">${esc(u.search)}</span>` : ''}</div>
+      <div class="row muted" style="margin-top:6px;gap:16px;font-size:12.5px"><span><span class="p2">■</span> máy chủ</span><span><span class="p4">■</span> nhóm / module</span><span><span class="p3">■</span> tên chức năng (endpoint)</span>${qs.length ? '<span><span class="p1">■</span> tham số trên link</span>' : ''}</div>
+      ${qs.length ? `<table class="mt"><tbody>${qs.map(([k, v]) => `<tr><td class="mono">${esc(k)} = ${esc(v)}</td><td class="explain">${explainField(k, v, [k])}</td></tr>`).join('')}</tbody></table>` : ''}</div>`;
+  }
+  $('#tOv').innerHTML = t;
+  $$('#tOv [data-goto]').forEach(b => b.onclick = () => showTab(b.dataset.goto));
+}
+
+/* ================= TAB HEADERS ================= */
+function jwtPanel(v) {
+  const j = decodeJwt(v.replace(/^Bearer\s+/i, ''));
+  if (!j) return '';
+  const left = j.exp ? j.exp - Date.now() / 1000 : null;
+  const t = s => s ? VN(new Date(s * 1000)) : '—';
+  const known = {email:'Email', name:'Tên đăng nhập', sub:'Mã người dùng', client_id:'Ứng dụng', tenantid:'Mã công ty (tenant)', iss:'Nơi cấp token', scope:'Phạm vi quyền'};
+  const rows = Object.entries(known).filter(([k]) => j[k] != null).map(([k, l]) => `<div>${l}</div><div class="mono">${esc(Array.isArray(j[k]) ? j[k].join(', ') : j[k])}</div>`).join('');
+  return `<div class="note ${left == null ? 'n-info' : left > 3600 ? 'n-ok' : left > 0 ? 'n-warn' : 'n-bad'}" style="margin-top:6px">
+    <b>Giải mã token:</b> ${left == null ? 'không có hạn dùng' : left > 0 ? 'còn hạn <b>' + fmtLeft(left) + '</b>' : '<b>ĐÃ HẾT HẠN</b>'}
+    <div class="kv" style="margin-top:6px;color:var(--fg)"><div>Cấp lúc</div><div>${t(j.iat || j.nbf)}</div><div>Hết hạn lúc</div><div><b>${t(j.exp)}</b></div>${rows}</div></div>`;
+}
+function renderHeaders() {
+  $('#cntHdr').textContent = S.headers.filter(h => h.on).length;
+  const rows = S.headers.map((h, i) => {
+    const key = h.k.toLowerCase(), info = HEADER_INFO[key] || (key.startsWith('sec-') ? ['Trình duyệt tự thêm — không cần.', 'bo'] : ['Header khác (có thể là header riêng của hệ thống).', 'nen']);
+    const lv = LEVEL[info[1]];
+    let extra = '';
+    if (key === 'authorization') extra = jwtPanel(h.v);
+    if (key === 'listactioncode' && h.v) { const a = h.v.split(',').filter(Boolean); extra = `<details style="margin-top:4px"><summary>${a.length} quyền — bấm để xem</summary><div class="chips" style="margin-top:4px">${a.sort().map(x => `<span class="chip">${esc(x)}</span>`).join('')}</div></details>`; }
+    const long = h.v.length > 90;
+    return `<tr ${h.on ? '' : 'style="opacity:.5"'}>
+      <td><input type="checkbox" data-hon="${i}" ${h.on ? 'checked' : ''} title="Bỏ tick để thử chạy KHÔNG có header này"></td>
+      <td class="mono" style="word-break:normal;white-space:nowrap"><b>${esc(h.k)}</b><br><span class="badge ${lv[1]}">${lv[0]}</span></td>
+      <td style="min-width:260px">${long ? `<details><summary class="mono">${esc(h.v.slice(0, 60))}…</summary><textarea rows="4" data-hv="${i}">${esc(h.v)}</textarea></details>` : `<input type="text" class="mono" style="width:100%" data-hv="${i}" value="${esc(h.v)}">`}${extra}</td>
+      <td class="explain hidem">${info[0]}</td></tr>`;
+  }).join('');
+  $('#hdrCard').innerHTML = `<div class="row" style="justify-content:space-between"><h3>🔑 Headers — thông tin đi kèm request</h3><button id="btnAddHdr">+ Thêm header</button></div>
+    <div class="muted" style="margin-bottom:8px">Bỏ tick 1 header rồi chạy thử để biết nó có bắt buộc không.</div>
+    <div class="scroll"><table><thead><tr><th style="width:40px">Dùng</th><th>Tên</th><th>Giá trị</th><th class="hidem">Ý nghĩa</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  $$('[data-hon]').forEach(el => el.onchange = () => { S.headers[+el.dataset.hon].on = el.checked; renderHeaders(); renderOverview(); renderCode(); });
+  $$('[data-hv]').forEach(el => el.onchange = () => { S.headers[+el.dataset.hv].v = el.value.trim(); renderHeaders(); renderOverview(); renderCode(); });
+  $('#btnAddHdr').onclick = () => { const k = prompt('Tên header:'); if (!k) return; S.headers.push({k: k.trim(), v: prompt('Giá trị:') || '', on: true}); renderHeaders(); renderCode(); };
+}
+
+/* ================= TAB BODY ================= */
+function bodyGroups() {
+  if (!isPlain(S.bodyObj)) return [];
+  const g = Object.keys(S.bodyObj).filter(k => isPlain(S.bodyObj[k]));
+  if (Object.values(S.bodyObj).some(v => !isPlain(v))) g.push('__root');
+  return g;
+}
+function groupLeaves(g) {
+  if (g === '__root') return Object.entries(S.bodyObj).filter(([, v]) => !isPlain(v)).map(([k, v]) => [[k], v]);
+  return leaves(S.bodyObj[g], [g]);
+}
+function rowVisible(p, v, ed) {
+  const k = pkey(p);
+  if (bodyQ) { const q = bodyQ.toLowerCase(); if (!p.join('.').toLowerCase().includes(q) && !JSON.stringify(v).toLowerCase().includes(q)) return false; }
+  if (bodyView === 'edited') return ed.has(k);
+  if (bodyView === 'set') return ed.has(k) || !isEmptyVal(v);
+  return true;
+}
+function inputFor(val, ps) {
+  if (typeof val === 'boolean') return `<label><input type="checkbox" data-path="${ps}" data-t="bool" ${val ? 'checked' : ''}> ${val ? 'bật (true)' : 'tắt (false)'}</label>`;
+  if (typeof val === 'number') return `<input type="number" step="any" data-path="${ps}" data-t="num" value="${val}">`;
+  if (Array.isArray(val)) {
+    const txt = JSON.stringify(val);
+    return txt.length > 60 ? `<details><summary class="mono">[${val.length} giá trị] bấm để sửa</summary><textarea rows="5" data-path="${ps}" data-t="json">${esc(JSON.stringify(val, null, 1))}</textarea></details>`
+      : `<input type="text" class="mono" data-path="${ps}" data-t="json" value="${esc(txt)}" placeholder="[] = không lọc">`;
+  }
+  if (val === null) return `<input type="text" data-path="${ps}" data-t="null" placeholder="null">`;
+  if (typeof val === 'string' && ISO_RE.test(val) && ISO_TZ_RE.test(val))
+    return `<div class="dt"><input type="datetime-local" data-path="${ps}" data-t="date" value="${isoToVnInput(val)}"> <span class="badge b-info">giờ VN</span></div><div class="dt"><small>gửi đi: ${esc(val)}</small></div>`;
+  if (typeof val === 'string' && val.length > 80) return `<textarea rows="3" class="mono" data-path="${ps}" data-t="str">${esc(val)}</textarea>`;
+  return `<input type="text" class="mono" data-path="${ps}" data-t="str" value="${esc(val)}">`;
+}
+function rowHtml(p, val, depth, ed) {
+  const ps = esc(pkey(p)), k = p[p.length - 1], isEd = ed.has(pkey(p));
+  const orig = isEd ? getAt(S.origObj, p) : undefined;
+  return `<tr class="bodyrow ${isEd ? 'edited' : ''}" data-row="${ps}" data-depth="${depth}">
+    <td class="mono" style="padding-left:${8 + depth * 16}px;word-break:normal">${esc(k)}</td>
+    <td style="min-width:240px">${inputFor(val, ps)}${isEd ? `<div class="orig">gốc: <span class="mono">${esc(shortVal(orig))}</span><button data-reset="${ps}" title="Trả về giá trị gốc">↺ hoàn tác</button></div>` : ''}</td>
+    <td class="explain">${explainField(k, val, p)}</td></tr>`;
+}
+function groupRows(g, ed) {
+  // giữ thứ tự, chèn dòng tiêu đề cho object con
+  let html = '', lastParent = '';
+  const base = g === '__root' ? 0 : 1;
+  for (const [p, v] of groupLeaves(g)) {
+    if (!rowVisible(p, v, ed)) continue;
+    const parent = p.slice(base, -1).join(' › ');
+    if (parent && parent !== lastParent) html += `<tr class="grp"><td colspan="3" style="padding-left:${8 + (p.length - base - 2) * 16}px">▸ ${esc(parent)}</td></tr>`;
+    lastParent = parent;
+    html += rowHtml(p, v, p.length - base - 1, ed);
+  }
+  return html;
+}
+function groupLabel(g) {
+  if (g === '__root') return 'Cấp ngoài';
+  if (g === 'filter') return 'filter · bộ lọc màn hình';
+  if (g === 'request') return 'request · phân trang/lọc lưới';
+  return g;
+}
+function renderBody() {
+  const card = $('#bodyCard'), ed = S.bodyObj !== undefined ? editedSet() : new Set();
+  $('#cntBody').textContent = ed.size ? `${ed.size} đã sửa` : '';
+  $('#cntBody').style.background = ed.size ? 'var(--edited-line)' : '';
+  if (!S.body) { card.innerHTML = `<div class="empty"><div class="ic">📭</div>Không có Body${S.method === 'GET' ? ' — bình thường với GET (thông số nằm trên link).' : '.'}</div>`; return; }
+  const groups = bodyGroups();
+  if (!groups.length) bodyGroup = '__raw';
+  else if (!bodyGroup || (bodyGroup !== '__raw' && !groups.includes(bodyGroup))) bodyGroup = groups.includes('filter') ? 'filter' : groups[0];
+
+  const tabs = groups.map(g => {
+    const lv = groupLeaves(g), nSet = lv.filter(([, v]) => !isEmptyVal(v)).length, nEd = lv.filter(([p]) => ed.has(pkey(p))).length;
+    return `<button class="stab ${bodyGroup === g ? 'on' : ''}" data-bg="${esc(g)}">${esc(groupLabel(g))} <span class="badge">${nSet}/${lv.length}</span>${nEd ? ` <span class="badge b-warn">${nEd} sửa</span>` : ''}</button>`;
+  }).join('') + `<button class="stab ${bodyGroup === '__raw' ? 'on' : ''}" data-bg="__raw">{ } JSON thô</button>`;
+
+  let content;
+  if (bodyGroup === '__raw') {
+    const asTree = S.bodyObj !== undefined && bodyRawView === 'tree';
+    content = (S.bodyObj !== undefined ? `<div class="row" style="margin-bottom:8px">
+        <div class="seg"><button data-rawv="tree" class="${asTree ? 'on' : ''}">🌳 Dạng cây</button><button data-rawv="text" class="${asTree ? '' : 'on'}">📝 Dạng chữ (sửa được)</button></div>
+        ${asTree ? `<button id="bodyTreeAll">${bodyTreeAll ? '⊟ Thu gọn' : '⊞ Mở hết'}</button><span class="muted">Chỉ để xem — sửa ở các tab nhóm hoặc “Dạng chữ”.</span>` : ''}</div>` : '') +
+      (asTree ? '<div class="scroll tree" id="bodyTree"></div>'
+        : `<textarea id="bodyRaw" rows="22" spellcheck="false">${esc(S.bodyObj !== undefined ? JSON.stringify(S.bodyObj, null, 2) : S.body)}</textarea>
+      <div class="row"><button class="btn-pri" id="btnBodyApply">Áp dụng chỉnh sửa</button><span id="bodyErr" class="explain"></span></div>`);
+  } else {
+    const rows = groupRows(bodyGroup, ed);
+    content = `<div class="scroll"><table><thead><tr><th>Trường</th><th>Giá trị (sửa được)</th><th>Giải thích</th></tr></thead>
+      <tbody id="bodyTbody">${rows || `<tr><td colspan="3" class="empty">${bodyView === 'edited' ? 'Chưa sửa trường nào trong nhóm này.' : 'Không có trường nào khớp.'} <a href="#" id="showAll">Hiện tất cả</a></td></tr>`}</tbody></table></div>`;
+  }
+  card.innerHTML = `<div class="row" style="margin-bottom:8px">
+      <input id="bodySearch" class="grow" placeholder="🔎 Tìm trường hoặc giá trị… (vd Date, pageSize, 48102)" value="${esc(bodyQ)}">
+      <div class="seg">
+        <button data-bv="set" class="${bodyView === 'set' ? 'on' : ''}" title="Chỉ hiện trường đang bật / có giá trị / đã sửa">Đang dùng</button>
+        <button data-bv="edited" class="${bodyView === 'edited' ? 'on' : ''}">Đã sửa (${ed.size})</button>
+        <button data-bv="all" class="${bodyView === 'all' ? 'on' : ''}">Tất cả</button>
+      </div>
+      <button id="btnResetAll" ${ed.size ? '' : 'disabled'} title="Trả toàn bộ body về như lúc dán">↺ Hoàn tác tất cả</button>
+    </div>
+    <div class="subtabs">${tabs}</div>${content}`;
+
+  $$('#bodyCard [data-bg]').forEach(b => b.onclick = () => { bodyGroup = b.dataset.bg; renderBody(); });
+  $$('#bodyCard [data-rawv]').forEach(b => b.onclick = () => { bodyRawView = b.dataset.rawv; renderBody(); });
+  if ($('#bodyTree')) {
+    renderTree($('#bodyTree'), S.bodyObj, {openAll: bodyTreeAll, ed});
+    $('#bodyTreeAll').onclick = () => { bodyTreeAll = !bodyTreeAll; renderBody(); };
+  }
+  $$('#bodyCard [data-bv]').forEach(b => b.onclick = () => { bodyView = b.dataset.bv; if (bodyGroup === '__raw') bodyGroup = null; renderBody(); });
+  const bs = $('#bodySearch');
+  bs.oninput = () => { bodyQ = bs.value; clearTimeout(bs._t); bs._t = setTimeout(() => { renderBody(); const n = $('#bodySearch'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); };
+  $('#btnResetAll').onclick = () => { if (!confirm(`Hoàn tác ${ed.size} trường đã sửa về như lúc dán?`)) return; S.bodyObj = clone(S.origObj); S.body = JSON.stringify(S.bodyObj); afterBodyChange(true); };
+  const sa = $('#showAll'); if (sa) sa.onclick = e => { e.preventDefault(); bodyView = 'all'; bodyQ = ''; renderBody(); };
+  const tb = $('#bodyTbody');
+  if (tb) {
+    tb.addEventListener('change', e => { if (e.target.dataset.path) onBodyEdit(e.target); });
+    tb.addEventListener('click', e => {
+      const b = e.target.closest('[data-reset]'); if (!b) return;
+      const p = JSON.parse(b.dataset.reset); setAt(S.bodyObj, p, clone(getAt(S.origObj, p))); S.body = JSON.stringify(S.bodyObj);
+      refreshRow(p); afterBodyChange(false);
+    });
+  }
+  const ap = $('#btnBodyApply');
+  if (ap) ap.onclick = () => {
+    const t = $('#bodyRaw').value;
+    try { S.bodyObj = JSON.parse(t); S.body = JSON.stringify(S.bodyObj); }
+    catch (e) { if (S.bodyObj !== undefined) { $('#bodyErr').innerHTML = '<span style="color:var(--bad)">JSON lỗi: ' + esc(e.message) + '</span>'; return; } S.body = t; }
+    $('#bodyErr').innerHTML = '<span style="color:var(--ok)">✓ Đã áp dụng</span>';
+    afterBodyChange(false); renderOverview();
+  };
+}
+function refreshRow(p) {
+  const tr = $(`#bodyTbody tr[data-row="${CSS.escape(pkey(p))}"]`); if (!tr) return;
+  tr.outerHTML = rowHtml(p, getAt(S.bodyObj, p), +tr.dataset.depth, editedSet());
+}
+function onBodyEdit(el) {
+  const p = JSON.parse(el.dataset.path); let v;
+  el.classList.remove('err');
+  switch (el.dataset.t) {
+    case 'bool': v = el.checked; break;
+    case 'num': v = el.value === '' ? null : Number(el.value); break;
+    case 'json': try { v = JSON.parse(el.value); } catch { el.classList.add('err'); return; } break;
+    case 'null': v = el.value === '' ? null : el.value; break;
+    case 'date': if (!el.value) { el.classList.add('err'); return; } v = vnInputToIso(el.value); break;
+    default: v = el.value;
+  }
+  setAt(S.bodyObj, p, v);
+  S.body = JSON.stringify(S.bodyObj);
+  refreshRow(p); afterBodyChange(false);
+}
+// cập nhật các phần phụ thuộc body; full = vẽ lại cả tab body
+function afterBodyChange(full) {
+  if (full) renderBody();
+  else {
+    const ed = editedSet();
+    $('#cntBody').textContent = ed.size ? `${ed.size} đã sửa` : '';
+    $('#cntBody').style.background = ed.size ? 'var(--edited-line)' : '';
+    const seg = $('#bodyCard [data-bv="edited"]'); if (seg) seg.textContent = `Đã sửa (${ed.size})`;
+    const ra = $('#btnResetAll'); if (ra) ra.disabled = !ed.size;
+    $$('#bodyCard [data-bg]').forEach(b => {
+      const g = b.dataset.bg; if (g === '__raw') return;
+      const lv = groupLeaves(g), nSet = lv.filter(([, v]) => !isEmptyVal(v)).length, nEd = lv.filter(([p]) => ed.has(pkey(p))).length;
+      b.innerHTML = `${esc(groupLabel(g))} <span class="badge">${nSet}/${lv.length}</span>${nEd ? ` <span class="badge b-warn">${nEd} sửa</span>` : ''}`;
+    });
+  }
+  renderOverview(); renderCode();
+}
+
+/* ================= CHẠY THỬ ================= */
+async function send() {
+  S.url = $('#url').value.trim(); S.method = $('#method').value;
+  const u = safeURL(S.url); if (!u) return alert('URL không hợp lệ');
+  const [kind, kc] = endpointKind(u.pathname.split('/').pop());
+  if ((kc === 'bad' || ['PUT', 'PATCH', 'DELETE'].includes(S.method)) && !confirm(`Chức năng này có vẻ ${kind || S.method}.\nChạy thử có thể THAY ĐỔI DỮ LIỆU THẬT trên ${u.host}.\n\nVẫn chạy?`)) return;
+  if (location.protocol === 'file:') return alert('Đang mở file trực tiếp — hãy dùng bản web hoặc Chay_API_Soi.bat.');
+  const btn = $('#btnSend'); btn.disabled = true; btn.textContent = '⏳ Đang chạy…';
+  showTab('tRes'); $('#respCard').innerHTML = '<div class="empty"><div class="ic">⏳</div>Đang chờ server trả lời…</div>';
+  const headers = {}; S.headers.filter(h => h.on).forEach(h => headers[h.k] = h.v);
+  R = await doRequest({url: S.url, method: S.method, headers, body: S.body, referrer: S.referrer});
+  btn.disabled = false; btn.textContent = '▶ Chạy thử';
+  R.json = undefined; if (R.body) { try { R.json = JSON.parse(R.body); } catch {} }
+  arrPick = 0; tableQ = ''; resView = 'table';
+  const arrs = R.json !== undefined ? sortedArrays(R.json) : [];
+  RUNS.push({no: RUNS.length + 1, time: new Date(), status: R.status || 'ERR', bodyObj: clone(S.bodyObj), body: S.body, url: S.url, json: R.json, rows: arrs.length ? arrs[0].arr : null, arrPath: arrs.length ? arrs[0].path : null});
+  if (RUNS.length > 15) RUNS.shift();
+  cmpA = cmpB = null;
+  saveHistory();
+  renderResp(); renderCompare(); renderCode();
+}
+
+/* ================= TAB KẾT QUẢ ================= */
+function fmtSize(n) { return n > 1048576 ? (n / 1048576).toFixed(2) + ' MB' : n > 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B'; }
+function findArrays(v, path, out) {
+  if (Array.isArray(v)) { if (v.some(isPlain)) out.push({path, arr: v}); return out; }
+  if (isPlain(v)) for (const [k, x] of Object.entries(v)) findArrays(x, path.concat(k), out);
+  return out;
+}
+const sortedArrays = j => findArrays(j, [], []).sort((a, b) => b.arr.length - a.arr.length);
+function pathLabel(p) { return p.length ? p.join(' › ') : '(gốc)'; }
+function cellText(v) { return v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); }
+function colsOf(arr) { const cols = [], seen = new Set(); arr.slice(0, 500).forEach(r => isPlain(r) && Object.keys(r).forEach(k => { if (!seen.has(k)) { seen.add(k); cols.push(k); } })); return cols; }
+function renderResp() {
+  const c = $('#respCard');
+  if (!R) { c.innerHTML = '<div class="empty"><div class="ic">🚀</div>Chưa chạy. Bấm <b>▶ Chạy thử</b> ở trên.</div>'; $('#cntRes').innerHTML = ''; return; }
+  if (R.networkError) { $('#cntRes').innerHTML = '<span class="cnt" style="background:var(--bad);color:#fff">lỗi</span>'; c.innerHTML = `<div class="note n-bad"><b>Không gọi được tới server:</b> ${esc(R.networkError)}</div><div class="muted">Kiểm tra mạng / VPN, hoặc địa chỉ có đúng không.</div>`; return; }
+  const cls = R.status < 300 ? 'b-ok' : R.status < 500 ? 'b-warn' : 'b-bad';
+  $('#cntRes').innerHTML = `<span class="cnt" style="background:var(${R.status < 300 ? '--ok' : R.status < 500 ? '--warn' : '--bad'});color:#fff">${R.status}</span>`;
+  const arrs = R.json !== undefined ? sortedArrays(R.json) : [];
+  const ct = R.headers['content-type'] || '';
+  let errMsg = '';
+  if (R.status >= 400 && isPlain(R.json)) { const m = R.json.Message || R.json.message || R.json.error || R.json.title || R.json.ExceptionMessage || R.json.errors; if (m) errMsg = typeof m === 'string' ? m : JSON.stringify(m); }
+  const totalKey = isPlain(R.json) ? Object.keys(R.json).find(k => /^total(count)?$/i.test(k) && typeof R.json[k] === 'number') : null;
+  if (!arrs.length && resView === 'table') resView = 'tree';
+  const a = arrs.length ? arrs[Math.min(arrPick, arrs.length - 1)] : null;
+  let html = `<div class="row" style="gap:14px">
+      <span class="badge ${cls} status-big">${R.status} ${esc(R.statusText)}</span>
+      <span>${STATUS_INFO[R.status] || (R.status < 300 ? 'Thành công.' : R.status < 500 ? 'Lỗi phía yêu cầu gửi đi.' : 'Lỗi phía server.')}</span>
+      <span class="grow"></span><span class="muted">⏱ ${R.timeMs} ms · 📦 ${fmtSize(R.size)} · lần chạy #${RUNS.length ? RUNS[RUNS.length - 1].no : '?'}</span></div>`;
+  if (errMsg) html += `<div class="note n-bad"><b>Server báo:</b> ${esc(errMsg)}</div>`;
+  if (R.status >= 400 && S.origObj && editedSet().size) html += `<div class="note n-warn">Bạn đang sửa ${editedSet().size} trường trong body — lỗi có thể do đó. Xem tab <b>Body</b> (lọc “Đã sửa”) hoặc bấm ↺ Hoàn tác.</div>`;
+  if (a) html += `<div class="note n-info">Danh sách <b>${esc(pathLabel(a.path))}</b>: <b>${a.arr.length}</b> dòng${totalKey ? ` / server báo tổng <b>${R.json[totalKey]}</b> (${esc(totalKey)})${R.json[totalKey] > a.arr.length ? ' → chưa lấy hết, tăng <b>pageSize</b> trong Body' : ''}` : ''}.</div>`;
+  html += `<div class="subtabs">
+      ${arrs.length ? `<button class="stab ${resView === 'table' ? 'on' : ''}" data-rv="table">📋 Bảng dữ liệu</button>` : ''}
+      <button class="stab ${resView === 'tree' ? 'on' : ''}" data-rv="tree">🌳 ${R.json !== undefined ? 'JSON dạng cây' : 'Nội dung'}</button>
+      <button class="stab ${resView === 'raw' ? 'on' : ''}" data-rv="raw">📄 Thô</button>
+      <button class="stab ${resView === 'hdr' ? 'on' : ''}" data-rv="hdr">🏷 Headers trả về</button></div><div id="resBody"></div>`;
+  c.innerHTML = html;
+  $$('#respCard [data-rv]').forEach(b => b.onclick = () => { resView = b.dataset.rv; renderResp(); });
+  const box = $('#resBody');
+  if (resView === 'table' && arrs.length) renderTable(arrs, box);
+  else if (resView === 'tree') {
+    if (R.json !== undefined) {
+      box.innerHTML = `<div class="row" style="margin-bottom:8px"><button id="resTreeAll">${resTreeAll ? '⊟ Thu gọn' : '⊞ Mở hết'}</button></div><div class="scroll tree" id="resTree"></div>`;
+      renderTree($('#resTree'), R.json, {openAll: resTreeAll});
+      $('#resTreeAll').onclick = () => { resTreeAll = !resTreeAll; renderResp(); };
+    }
+    else if (/html/i.test(ct)) box.innerHTML = `<div class="note n-warn">Server trả về trang HTML, không phải dữ liệu — thường do chưa đăng nhập / sai địa chỉ.</div><iframe sandbox style="width:100%;height:400px;border:1px solid var(--line);border-radius:8px;background:#fff" srcdoc="${esc(R.body)}"></iframe>`;
+    else box.innerHTML = `<div class="codebox"><pre>${esc(R.body || '(trống)')}</pre></div>`;
+  } else if (resView === 'raw') box.innerHTML = `<div class="codebox"><pre>${esc(R.body.length > 500000 ? R.body.slice(0, 500000) + '\n… (cắt bớt, quá dài)' : R.body || '(trống)')}</pre></div>`;
+  else if (resView === 'hdr') box.innerHTML = `<div class="scroll"><table>${Object.entries(R.headers).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`).join('')}</table></div>`;
+}
+function gridHtml(cols, rows, lim, rowCls) {
+  return `<div class="scroll"><table class="grid"><thead><tr><th>#</th>${cols.map(c => `<th title="${esc(guessVN(c))}">${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.slice(0, lim).map((r, i) => `<tr ${rowCls ? `class="${rowCls}"` : ''}><td class="muted">${i + 1}</td>${cols.map(c => { const t = cellText(r?.[c]); return `<td title="${esc(t)}">${esc(t)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function downloadCsv(cols, rows, name) {
+  const e = v => { const t = cellText(v); return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const csv = '﻿' + [cols.map(e).join(','), ...rows.map(r => cols.map(c => e(r?.[c])).join(','))].join('\r\n');
+  const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+  link.download = `${name}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`; link.click();
+}
+function renderTable(arrs, box) {
+  const a = arrs[Math.min(arrPick, arrs.length - 1)], cols = colsOf(a.arr);
+  const q = tableQ.toLowerCase();
+  const rows = q ? a.arr.filter(r => cols.some(c => cellText(r?.[c]).toLowerCase().includes(q))) : a.arr;
+  const LIM = 1000;
+  box.innerHTML = `<div class="row" style="margin-bottom:8px">
+      ${arrs.length > 1 ? `<select id="arrSel">${arrs.map((x, i) => `<option value="${i}" ${i === arrPick ? 'selected' : ''}>${esc(pathLabel(x.path))} (${x.arr.length} dòng)</option>`).join('')}</select>` : ''}
+      <input id="tblQ" class="grow" placeholder="🔎 Tìm trong bảng…" value="${esc(tableQ)}">
+      <button id="btnCsv">⬇ Tải CSV</button><button id="btnTsv">📋 Chép để dán Excel</button>
+      <span class="badge b-brand">${rows.length} dòng × ${cols.length} cột</span>${rows.length > LIM ? `<span class="muted">hiển thị ${LIM} dòng đầu</span>` : ''}</div>
+    ${gridHtml(cols, rows, LIM)}`;
+  const sel = $('#arrSel'); if (sel) sel.onchange = () => { arrPick = +sel.value; renderTable(arrs, box); renderCode(); };
+  const qi = $('#tblQ'); qi.oninput = () => { tableQ = qi.value; clearTimeout(qi._t); qi._t = setTimeout(() => { renderTable(arrs, box); const n = $('#tblQ'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); };
+  $('#btnCsv').onclick = () => downloadCsv(cols, rows, endpointName());
+  $('#btnTsv').onclick = async () => {
+    const e = v => cellText(v).replace(/[\t\r\n]+/g, ' ');
+    await navigator.clipboard.writeText([cols.join('\t'), ...rows.map(r => cols.map(c => e(r?.[c])).join('\t'))].join('\n'));
+    $('#btnTsv').textContent = '✓ Đã chép — Ctrl+V vào Excel';
+  };
+}
+function fmtVal(v) {
+  if (v === null) return '<span class="vnull">null</span>';
+  if (typeof v === 'string') return `<span class="vs">"${esc(v)}"</span>${ISO_RE.test(v) && ISO_TZ_RE.test(v) ? ` <span class="muted">(giờ VN ${VN(new Date(v))})</span>` : ''}`;
+  if (typeof v === 'number') return `<span class="vn">${v}</span>`;
+  return `<span class="vb">${v}</span>`;
+}
+// Cây JSON: ctx = {nodes: [], openAll, ed: Set đường dẫn đã sửa (chỉ dùng cho body)}
+function treeHtml(v, k, depth, ctx, path) {
+  const key = k != null ? `<span class="k">${esc(k)}</span>: ` : '';
+  const ed = ctx.ed && ctx.ed.has(pkey(path)), mark = ed ? ' <span class="badge b-warn">đã sửa</span>' : '';
+  if (v && typeof v === 'object') {
+    const isA = Array.isArray(v), n = isA ? v.length : Object.keys(v).length;
+    const id = ctx.nodes.push({v, depth, path}) - 1, open = ctx.openAll || (depth < 2 && n <= 50);
+    return `<details data-node="${id}" ${open ? 'open' : ''}><summary ${ed ? 'class="tedit"' : ''}>${key}<span class="muted">${isA ? `[${n} phần tử]` : `{${n} trường}`}</span>${mark}</summary><div>${open ? treeChildren(v, depth, ctx, path) : ''}</div></details>`;
+  }
+  return `<div ${ed ? 'class="tedit"' : ''}>${key}${fmtVal(v)}${mark}</div>`;
+}
+function treeChildren(v, depth, ctx, path) {
+  const isA = Array.isArray(v), ent = isA ? v.slice(0, 300).map((x, i) => [i, x]) : Object.entries(v);
+  return ent.map(([k, x]) => treeHtml(x, k, depth + 1, ctx, path.concat(k))).join('') + (isA && v.length > 300 ? `<div class="muted">… còn ${v.length - 300} phần tử (xem ở tab Bảng/Thô)</div>` : '');
+}
+function renderTree(box, v, ctx) {
+  ctx.nodes = [];
+  box.innerHTML = treeHtml(v, null, 0, ctx, []);
+  box.addEventListener('toggle', e => {
+    const d = e.target; if (!d.open || !d.dataset.node) return;
+    const body = d.querySelector(':scope>div'); if (body.innerHTML) return;
+    const n = ctx.nodes[+d.dataset.node]; body.innerHTML = treeChildren(n.v, n.depth, ctx, n.path);
+  }, true);
+}
+let resTreeAll = false, bodyTreeAll = false, bodyRawView = 'tree';
+
+/* ================= TAB SO SÁNH ================= */
+let cmpA = null, cmpB = null, cmpKey = null, cmpView = 'body';
+function runLabel(r) { return `#${r.no} · ${r.time.toLocaleTimeString('vi-VN')} · ${r.status}${r.rows ? ` · ${r.rows.length} dòng` : ''}`; }
+function autoKey(a, b, cols) {
+  const uniq = c => [a, b].every(rows => { const s = new Set(); for (const r of rows) { const v = r?.[c]; if (v == null || v === '' || s.has(v)) return false; s.add(v); } return true; });
+  return cols.filter(c => /ID$/i.test(c)).find(uniq) || cols.filter(c => /Code$/i.test(c)).find(uniq) || cols.find(uniq) || null;
+}
+function renderCompare() {
+  $('#cntCmp').textContent = RUNS.length;
+  const c = $('#cmpCard');
+  if (RUNS.length < 2) { c.innerHTML = `<div class="empty"><div class="ic">⚖️</div>Cần chạy ít nhất <b>2 lần</b> để so sánh.<br>Cách dùng: chạy 1 lần → sửa body → chạy lại → mở tab này.<br><span class="muted">Đã chạy: ${RUNS.length} lần</span></div>`; return; }
+  const A = RUNS.find(r => r.no === cmpA) || RUNS[RUNS.length - 2], B = RUNS.find(r => r.no === cmpB) || RUNS[RUNS.length - 1];
+  const opt = sel => RUNS.map(r => `<option value="${r.no}" ${r.no === sel.no ? 'selected' : ''}>${esc(runLabel(r))}</option>`).join('');
+
+  // khác biệt body
+  const la = new Map(leaves(A.bodyObj ?? A.body).map(([p, v]) => [pkey(p), v])), lb = new Map(leaves(B.bodyObj ?? B.body).map(([p, v]) => [pkey(p), v]));
+  const bodyDiff = [...new Set([...la.keys(), ...lb.keys()])].filter(k => JSON.stringify(la.get(k)) !== JSON.stringify(lb.get(k)));
+  const urlDiff = A.url !== B.url;
+
+  // khác biệt dữ liệu
+  let dataHtml = '', sum = '';
+  if (A.rows && B.rows) {
+    const cols = [...new Set([...colsOf(A.rows), ...colsOf(B.rows)])];
+    if (!cmpKey || !cols.includes(cmpKey)) cmpKey = autoKey(A.rows, B.rows, cols);
+    if (cmpKey) {
+      const ma = new Map(A.rows.map(r => [String(r?.[cmpKey]), r])), mb = new Map(B.rows.map(r => [String(r?.[cmpKey]), r]));
+      const added = B.rows.filter(r => !ma.has(String(r?.[cmpKey]))), removed = A.rows.filter(r => !mb.has(String(r?.[cmpKey])));
+      const changed = [];
+      for (const [k, rb] of mb) { const ra = ma.get(k); if (!ra) continue; const f = cols.filter(c => JSON.stringify(ra?.[c]) !== JSON.stringify(rb?.[c])); if (f.length) changed.push({k, ra, rb, f}); }
+      sum = `<div class="tiles mt">
+        ${tile('var(--c2)', `Lần A (#${A.no})`, A.rows.length + ' dòng', '')}
+        ${tile('var(--brand)', `Lần B (#${B.no})`, B.rows.length + ' dòng', `chênh ${B.rows.length - A.rows.length >= 0 ? '+' : ''}${B.rows.length - A.rows.length}`)}
+        ${tile('var(--ok)', 'Mới xuất hiện ở B', added.length + ' dòng', '')}
+        ${tile('var(--bad)', 'Bị mất ở B', removed.length + ' dòng', '')}
+        ${tile('var(--warn)', 'Thay đổi giá trị', changed.length + ' dòng', '')}</div>`;
+      const showCols = [cmpKey, ...cols.filter(c => c !== cmpKey)];
+      const views = {
+        added: () => added.length ? gridHtml(showCols, added, 500, 'add') : '<div class="empty">Không có dòng mới.</div>',
+        removed: () => removed.length ? gridHtml(showCols, removed, 500, 'del') : '<div class="empty">Không mất dòng nào.</div>',
+        changed: () => changed.length ? `<div class="scroll"><table><thead><tr><th>${esc(cmpKey)}</th><th>Trường thay đổi</th><th>A → B</th></tr></thead><tbody>${changed.slice(0, 500).map(x => x.f.map((f, i) => `<tr>${i === 0 ? `<td class="mono" rowspan="${x.f.length}">${esc(x.k)}</td>` : ''}<td class="mono">${esc(f)}</td><td class="diffv"><s>${esc(cellText(x.ra[f]) || '(trống)')}</s> → <ins>${esc(cellText(x.rb[f]) || '(trống)')}</ins></td></tr>`).join('')).join('')}</tbody></table></div>` : '<div class="empty">Không có dòng nào đổi giá trị.</div>',
+      };
+      if (!['body', 'added', 'removed', 'changed'].includes(cmpView)) cmpView = 'body';
+      dataHtml = { added, removed, changed, views };
+    } else sum = '<div class="note n-warn">Không tìm được cột khóa duy nhất để ghép dòng giữa 2 lần — chọn cột khóa ở trên.</div>';
+    c.dataset.cols = JSON.stringify(cols);
+  } else sum = '<div class="note n-info">Một trong 2 lần chạy không có danh sách dữ liệu — chỉ so sánh được body.</div>';
+
+  const cols = c.dataset.cols && A.rows && B.rows ? JSON.parse(c.dataset.cols) : [];
+  const bodyTbl = (urlDiff ? `<div class="note n-info">URL khác nhau:<br><span class="diffv"><s>${esc(A.url)}</s><br><ins>${esc(B.url)}</ins></span></div>` : '') +
+    (bodyDiff.length ? `<div class="scroll"><table><thead><tr><th>Trường</th><th>Lần A (#${A.no})</th><th>Lần B (#${B.no})</th></tr></thead><tbody>${bodyDiff.map(k => `<tr><td class="mono">${esc(JSON.parse(k).join('.'))}</td><td class="diffv"><s>${esc(shortVal(la.get(k)))}</s></td><td class="diffv"><ins>${esc(shortVal(lb.get(k)))}</ins></td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="empty">Body giống hệt nhau giữa 2 lần.</div>`);
+
+  c.innerHTML = `<div class="row">
+      <b>So</b> <select id="cmpA">${opt(A)}</select> <b>với</b> <select id="cmpB">${opt(B)}</select>
+      ${cols.length ? `<span class="muted">· ghép dòng theo cột</span> <select id="cmpKey">${cols.map(x => `<option ${x === cmpKey ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>` : ''}
+    </div>${sum}
+    <div class="subtabs mt">
+      <button class="stab ${cmpView === 'body' ? 'on' : ''}" data-cv="body">✏️ Body đã đổi <span class="badge">${bodyDiff.length + (urlDiff ? 1 : 0)}</span></button>
+      ${dataHtml ? `<button class="stab ${cmpView === 'added' ? 'on' : ''}" data-cv="added">➕ Mới xuất hiện <span class="badge b-ok">${dataHtml.added.length}</span></button>
+      <button class="stab ${cmpView === 'removed' ? 'on' : ''}" data-cv="removed">➖ Bị mất <span class="badge b-bad">${dataHtml.removed.length}</span></button>
+      <button class="stab ${cmpView === 'changed' ? 'on' : ''}" data-cv="changed">🔁 Thay đổi giá trị <span class="badge b-warn">${dataHtml.changed.length}</span></button>` : ''}
+    </div>
+    <div id="cmpBody">${cmpView === 'body' || !dataHtml ? bodyTbl : dataHtml.views[cmpView]()}</div>
+    ${dataHtml && cmpView !== 'body' ? '<div class="row mt"><button id="cmpCsv">⬇ Tải CSV phần này</button></div>' : ''}`;
+  $('#cmpA').onchange = e => { cmpA = +e.target.value; cmpB = B.no; renderCompare(); };
+  $('#cmpB').onchange = e => { cmpB = +e.target.value; cmpA = A.no; renderCompare(); };
+  const ks = $('#cmpKey'); if (ks) ks.onchange = () => { cmpKey = ks.value; renderCompare(); };
+  $$('#cmpCard [data-cv]').forEach(b => b.onclick = () => { cmpView = b.dataset.cv; renderCompare(); });
+  const cc = $('#cmpCsv');
+  if (cc) cc.onclick = () => {
+    if (cmpView === 'changed') downloadCsv([cmpKey, 'Truong', 'A', 'B'], dataHtml.changed.flatMap(x => x.f.map(f => ({[cmpKey]: x.k, Truong: f, A: x.ra[f], B: x.rb[f]}))), 'so-sanh-thay-doi');
+    else downloadCsv([cmpKey, ...cols.filter(x => x !== cmpKey)], dataHtml[cmpView], cmpView === 'added' ? 'so-sanh-moi' : 'so-sanh-mat');
+  };
+}
+
+/* ================= TAB XUẤT CODE ================= */
+const SKIP_CODE = k => ['content-length', 'host', 'connection', 'accept-encoding', 'priority'].includes(k) || k.startsWith('sec-');
+function activeHeaders() { return S.headers.filter(h => h.on && !SKIP_CODE(h.k.toLowerCase())); }
+function arrPath() {
+  if (!R || R.json === undefined) return null;
+  const arrs = sortedArrays(R.json);
+  return arrs.length ? arrs[Math.min(arrPick, arrs.length - 1)].path : null;
+}
+function renderCode() {
+  if (!S) return;
+  const lang = $('#codeLang').value, H = activeHeaders(), hasBody = S.body && S.method !== 'GET';
+  const ho = Object.fromEntries(H.map(h => [h.k, h.v])), ap = arrPath();
+  let code = '', hint = '';
+  if (lang === 'curl') {
+    const q = s => "'" + s.replace(/'/g, "'\\''") + "'";
+    code = `curl ${q(S.url)} \\\n  -X ${S.method} \\\n` + H.map(h => `  -H ${q(h.k + ': ' + h.v)}`).join(' \\\n') + (hasBody ? ` \\\n  --data-raw ${q(S.body)}` : '');
+  } else if (lang === 'py') {
+    code = `import requests\n\nurl = ${JSON.stringify(S.url)}\nheaders = ${JSON.stringify(ho, null, 4)}\n` +
+      (hasBody ? `body = ${JSON.stringify(S.body)}\n\nr = requests.request(${JSON.stringify(S.method)}, url, headers=headers, data=body.encode("utf-8"), timeout=180)\n`
+               : `\nr = requests.request(${JSON.stringify(S.method)}, url, headers=headers, timeout=180)\n`) +
+      `print(r.status_code)\ndata = r.json()\n` + (ap && ap.length ? `rows = data${ap.map(k => `[${JSON.stringify(k)}]`).join('')}\nprint(len(rows), "dòng")\n` : '');
+    hint = 'Cần cài: pip install requests';
+  } else if (lang === 'js') {
+    code = `fetch(${JSON.stringify(S.url)}, ${JSON.stringify({method: S.method, headers: ho, ...(hasBody ? {body: S.body} : {})}, null, 2)})\n  .then(r => r.json())\n  .then(console.log);`;
+    hint = 'Dán vào Console (F12) khi đang mở trang hệ thống.';
+  } else if (lang === 'ps') {
+    const q = s => "'" + s.replace(/'/g, "''") + "'";
+    code = `$headers = @{\n${H.filter(h => h.k.toLowerCase() !== 'content-type').map(h => `  ${q(h.k)} = ${q(h.v)}`).join('\n')}\n}\n` +
+      (hasBody ? `$body = ${q(S.body)}\n` : '') +
+      `$r = Invoke-RestMethod -Uri ${q(S.url)} -Method ${S.method} -Headers $headers` + (hasBody ? ` -ContentType ${q(ho['content-type'] || ho['Content-Type'] || 'application/json; charset=utf-8')} -Body ([Text.Encoding]::UTF8.GetBytes($body))` : '') + `\n$r` + (ap && ap.length ? `.${ap.join('.')}` : '') + ' | Format-Table';
+  } else {
+    const m = s => '"' + String(s).replace(/"/g, '""') + '"';
+    const pqH = H.filter(h => !['referer', 'user-agent'].includes(h.k.toLowerCase()));
+    const steps = [`    Source = Json.Document(Web.Contents(${m(S.url)}, [\n        Headers = [\n${pqH.map(h => `            #${m(h.k)} = ${m(h.v)}`).join(',\n')}\n        ]${hasBody ? `,\n        Content = Text.ToBinary(${m(S.body)}, TextEncoding.Utf8)` : ''}\n    ]))`];
+    if (ap && ap.every(k => typeof k === 'string')) {
+      steps.push(`    Rows = Source${ap.map(k => `[${/^[A-Za-z_][A-Za-z0-9_]*$/.test(k) ? k : '#' + m(k)}]`).join('')}`, `    Result = Table.FromRecords(Rows, null, MissingField.UseNull)`);
+    } else steps.push('    Result = Source');
+    code = `let\n${steps.join(',\n')}\nin\n    Result`;
+    hint = 'Excel → Data → Get Data → From Other Sources → Blank Query → Advanced Editor → dán vào. Hỏi quyền thì chọn Anonymous.';
+    if (!ap) hint += ' (Chạy thử trước để code ra thẳng bảng.)';
+  }
+  $('#code').textContent = code; $('#codeHint').textContent = hint;
+}
+$('#codeLang').onchange = renderCode;
+$('#btnCopyCode').onclick = async () => { await navigator.clipboard.writeText($('#code').textContent); $('#btnCopyCode').textContent = '✓ Đã chép'; setTimeout(() => $('#btnCopyCode').textContent = 'Chép', 1500); };
+
+/* ================= LỊCH SỬ (chỉ lưu trên trình duyệt máy này) ================= */
+const HK = 'apisoi.history';
+function loadHist() { try { return JSON.parse(localStorage.getItem(HK) || '[]'); } catch { return []; } }
+function saveHistory() {
+  try {
+    const h = loadHist();
+    h.unshift({name: `${R.status || 'ERR'} · ${endpointName()}`, ts: Date.now(), req: {url: S.url, method: S.method, headers: S.headers, body: S.body, referrer: S.referrer}});
+    localStorage.setItem(HK, JSON.stringify(h.slice(0, 30)));
+  } catch {}
+  fillHist();
+}
+function fillHist() {
+  const h = loadHist();
+  $('#hist').innerHTML = '<option value="">🕘 Lịch sử đã chạy</option>' + h.map((x, i) => `<option value="${i}">${esc(new Date(x.ts).toLocaleString('vi-VN'))} · ${esc(x.name)}</option>`).join('');
+}
+$('#hist').onchange = () => { const x = loadHist()[$('#hist').value]; if (x) load(clone(x.req)); $('#hist').value = ''; };
+$('#histClear').onclick = () => { if (confirm('Xóa toàn bộ lịch sử (có chứa token) khỏi máy này?')) { try { localStorage.removeItem(HK); } catch {} fillHist(); } };
+fillHist();
+
+/* ================= ĐIỀU KHIỂN CHUNG ================= */
+function showTab(id) { $$('.tab[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === id)); ['tOv', 'tBody', 'tHdr', 'tRes', 'tCmp', 'tCode'].forEach(t => $('#' + t).classList.toggle('hide', t !== id)); }
+$$('.tab[data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function paintMethod() { $('#method').className = 'm-' + $('#method').value; }
+function renderAll() { $('#url').value = S.url; $('#method').value = S.method; paintMethod(); renderOverview(); renderHeaders(); renderBody(); renderResp(); renderCompare(); renderCode(); }
+function load(req) {
+  S = req; S.bodyObj = undefined;
+  if (S.body) { try { S.bodyObj = JSON.parse(S.body); } catch {} }
+  S.origObj = clone(S.bodyObj);
+  R = null; RUNS = []; arrPick = 0; tableQ = ''; bodyGroup = null; bodyQ = ''; bodyView = 'set'; cmpKey = null; cmpView = 'body';
+  $('#pasteCard').classList.add('hide'); $('#loadedBar').classList.remove('hide'); $('#btnCancelPaste').classList.remove('hide');
+  $('#loadedName').textContent = endpointName();
+  $('#loadedInfo').textContent = '· nạp lúc ' + new Date().toLocaleTimeString('vi-VN');
+  $('#main').classList.remove('hide'); showTab('tOv'); renderAll();
+}
+$('#btnParse').onclick = () => {
+  const e = $('#parseErr'); e.classList.add('hide');
+  try { load(parseInput($('#input').value)); } catch (err) { e.textContent = err.message; e.classList.remove('hide'); }
+};
+$('#btnNewPaste').onclick = () => { $('#pasteCard').classList.remove('hide'); $('#input').value = ''; $('#input').focus(); };
+$('#btnCancelPaste').onclick = () => $('#pasteCard').classList.add('hide');
+$('#btnSend').onclick = send;
+$('#url').onchange = () => { S.url = $('#url').value.trim(); $('#loadedName').textContent = endpointName(); renderOverview(); renderCode(); };
+$('#method').onchange = () => { S.method = $('#method').value; paintMethod(); renderOverview(); renderBody(); renderCode(); };
+</script>
+</body>
+</html>
