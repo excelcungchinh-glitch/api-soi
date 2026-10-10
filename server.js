@@ -65,6 +65,10 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     return fs.createReadStream(INDEX).pipe(res);
   }
+  if (req.method === 'GET' && req.url.split('?')[0] === '/bridge.js') {
+    res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
+    return fs.createReadStream(path.join(__dirname, 'bridge.js')).pipe(res);
+  }
   res.writeHead(404); res.end();
 });
 

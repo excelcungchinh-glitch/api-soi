@@ -105,6 +105,18 @@ tr.edited td:first-child{box-shadow:inset 4px 0 var(--edited-line)}
 .tree details>div{padding-left:18px;border-left:1px dashed var(--line);margin-left:4px}
 .tree summary{cursor:pointer}
 .tedit{background:var(--edited);border-radius:4px}
+.hit{background:#fff1a8;color:#3a2e00;border-radius:4px}
+.hit .k,.hit .vs,.hit .vn,.hit .vb,.hit .muted{color:#3a2e00}
+.hit.cur{outline:2px solid var(--brand);background:#ffd84d}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--brand)}
+th.sorted{color:var(--brand);background:var(--brand-soft)}
+button.on{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+.colpanel{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--soft)}
+.colgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:2px 12px;max-height:220px;overflow:auto}
+.colgrid label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.bar{height:10px;background:var(--soft);border-radius:0 5px 5px 0}
+.bar span{display:block;height:100%;background:var(--brand);border-radius:0 4px 4px 0}
 .modebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-radius:10px;margin-bottom:12px}
 .bm{display:inline-block;padding:6px 14px;border-radius:8px;background:linear-gradient(110deg,var(--brand),var(--brand2));color:#fff;font-weight:700;text-decoration:none;cursor:grab}
 .k{color:var(--c1)}.vs{color:var(--c4)}.vn{color:var(--c3)}.vb{color:var(--c2)}.vnull{color:var(--muted)}
@@ -130,13 +142,27 @@ pre{margin:0;white-space:pre-wrap;word-break:break-all;font-family:var(--mono);f
 
   <!-- Ô dán API -->
   <div class="card" id="pasteCard">
-    <h3>📋 Dán API</h3>
-    <div class="muted" style="margin-bottom:6px">F12 → Network → chuột phải dòng API → Copy → <b>Copy as fetch</b> (hoặc <b>Copy as cURL (bash)</b>, hoặc 1 link).</div>
-    <textarea id="input" rows="6" placeholder='fetch("https://...", { "headers": {...}, "body": "...", "method": "POST" });'></textarea>
-    <div class="row" style="margin-top:8px">
-      <button class="btn-pri" id="btnParse">Bóc tách</button>
-      <button id="btnCancelPaste" class="hide">Hủy</button>
-      <span id="parseErr" class="note n-bad hide" style="margin:0"></span>
+    <div class="subtabs" id="pasteTabs">
+      <button class="stab" data-pt="cap">📡 API bắt được <span class="badge b-brand" id="capCount">0</span></button>
+      <button class="stab on" data-pt="paste">📋 Dán thủ công</button>
+      <span class="grow"></span><button id="btnCancelPaste" class="hide" style="margin-bottom:4px">✕ Đóng</button>
+    </div>
+    <div id="ptCap" class="hide">
+      <div class="muted" style="margin-bottom:6px">Tool tự ghi lại các API mà trang hệ thống gọi <b>sau khi bạn bấm 📌</b>. Cách dùng: bấm <b>✕ Thu nhỏ tool</b> → thao tác trên hệ thống (bấm Tìm kiếm, mở màn hình…) → bấm 📌 quay lại → chọn API bên dưới.</div>
+      <div class="row" style="margin-bottom:8px">
+        <input id="capQ" class="grow" placeholder="🔎 Lọc theo tên API… (vd OrderList)">
+        <label class="muted"><input type="checkbox" id="capDedup" checked> Gộp API trùng</label>
+        <button id="capClear">Xóa danh sách</button>
+      </div>
+      <div class="scroll" style="max-height:420px"><table><thead><tr><th>Lúc</th><th>Method</th><th>API</th><th>Kết quả</th><th></th></tr></thead><tbody id="capList"></tbody></table></div>
+    </div>
+    <div id="ptPaste">
+      <div class="muted" style="margin-bottom:6px">F12 → Network → chuột phải dòng API → Copy → <b>Copy as fetch</b> (hoặc <b>Copy as cURL (bash)</b>, hoặc 1 link).</div>
+      <textarea id="input" rows="6" placeholder='fetch("https://...", { "headers": {...}, "body": "...", "method": "POST" });'></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn-pri" id="btnParse">Bóc tách</button>
+        <span id="parseErr" class="note n-bad hide" style="margin:0"></span>
+      </div>
     </div>
   </div>
 
@@ -145,7 +171,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-all;font-family:var(--mono);f
       <span>📄 Đang soi: <b id="loadedName" class="mono"></b></span>
       <span class="muted" id="loadedInfo"></span>
       <span class="grow"></span>
-      <button id="btnNewPaste">📋 Dán API khác</button>
+      <button id="btnNewPaste">🔁 Đổi API <span class="badge b-brand hide" id="capNew"></span></button>
     </div>
 
     <div class="card reqbar mt">
@@ -215,19 +241,91 @@ const MODE = new URLSearchParams(location.search).has('bridge') && window.parent
   : /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? 'local' : 'web';
 let bridgeOrigin = null; const pendingReq = {};
 const FORBIDDEN_HDR = k => /^(cookie2?|host|content-length|connection|accept-encoding|accept-charset|referer|origin|user-agent|te|trailer|transfer-encoding|upgrade|via|keep-alive|expect|date|dnt|priority)$/i.test(k) || /^(sec-|proxy-)/i.test(k);
+let CAPS = [], capSupported = false, capSeen = 0;   // API bắt được từ trang hệ thống
 if (MODE === 'bridge') {
   addEventListener('message', e => {
     if (e.source !== window.parent) return;
     const d = e.data || {};
-    if (d.type === 'ready') { bridgeOrigin = e.origin; renderMode(); }
-    if (d.type === 'res' && pendingReq[d.id]) { pendingReq[d.id](d); delete pendingReq[d.id]; }
+    if (d.type === 'ready') { bridgeOrigin = e.origin; capSupported = !!d.capture; CAPS = (d.log || []).slice(); renderMode(); initPasteTabs(); renderCaps(); }
+    if (d.type === 'cap') { CAPS.push(d.item); if (CAPS.length > 200) CAPS.shift(); renderCaps(); }
+    if ((d.type === 'res' || d.type === 'token') && pendingReq[d.id]) { pendingReq[d.id](d); delete pendingReq[d.id]; }
   });
   window.parent.postMessage({type: 'hello'}, '*');
 }
+// Bookmark chỉ là “mồi” tải bridge.js từ chỗ đặt tool → cập nhật tool không phải kéo lại bookmark
 function bookmarkletHref() {
-  const O = location.origin, U = location.origin + location.pathname;
-  const src = `(()=>{const O=${JSON.stringify(O)},U=${JSON.stringify(U)};let f=window.__apisoi;if(f){f.style.display=f.style.display==='none'?'block':'none';return}f=document.createElement('iframe');f.src=U+'?bridge=1';f.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;border:0;z-index:2147483647;background:#f3f5fb';document.body.appendChild(f);window.__apisoi=f;addEventListener('message',async e=>{if(e.origin!==O||e.source!==f.contentWindow)return;const d=e.data||{},P=m=>f.contentWindow.postMessage(m,O);if(d.type==='hello')return P({type:'ready'});if(d.type==='close'){f.style.display='none';return}if(d.type!=='req')return;const t=Date.now();try{const r=await fetch(d.url,{method:d.method,headers:d.headers,body:d.body||undefined,credentials:'include'});const b=await r.arrayBuffer();P({type:'res',id:d.id,status:r.status,statusText:r.statusText,headers:Object.fromEntries(r.headers),body:new TextDecoder().decode(b),size:b.byteLength,timeMs:Date.now()-t})}catch(x){P({type:'res',id:d.id,networkError:String(x),timeMs:Date.now()-t})}})})()`;
+  const src = `(()=>{if(window.__apisoi){const f=window.__apisoi;f.style.display=f.style.display==='none'?'block':'none';return}const s=document.createElement('script');s.src=${JSON.stringify(new URL('bridge.js', location.href.split('?')[0]).href)}+'?v='+Date.now();s.onerror=()=>alert('API Soi: không tải được bridge.js');document.documentElement.appendChild(s)})()`;
   return 'javascript:' + encodeURIComponent(src);
+}
+function askParent(msg) {
+  return new Promise(res => {
+    const id = Math.random().toString(36).slice(2); pendingReq[id] = res;
+    window.parent.postMessage({...msg, id}, bridgeOrigin);
+    setTimeout(() => { if (pendingReq[id]) { delete pendingReq[id]; res({networkError: 'Quá 3 phút không có phản hồi'}); } }, 180000);
+  });
+}
+// ---- danh sách API bắt được ----
+const capName = c => { try { const u = new URL(c.url); return u.pathname.split('/').filter(Boolean).pop() || u.host; } catch { return c.url; } };
+const isNoise = c => /\.(js|css|png|jpe?g|gif|svg|woff2?|ttf|ico|map|html?)(\?|$)/i.test(c.url) || /^(OPTIONS|HEAD)$/.test(c.method);
+function capRows() {
+  const q = ($('#capQ').value || '').toLowerCase(), dedup = $('#capDedup').checked;
+  let list = CAPS.map((c, i) => ({c, i})).filter(x => !isNoise(x.c) && (!q || x.c.url.toLowerCase().includes(q)));
+  if (dedup) {
+    const m = new Map();
+    for (const x of list) { const k = x.c.method + ' ' + x.c.url.split('?')[0]; const o = m.get(k); m.set(k, {...x, n: (o ? o.n : 0) + 1}); }
+    list = [...m.values()];
+  }
+  return list.reverse();
+}
+function renderCaps() {
+  const n = CAPS.filter(c => !isNoise(c)).length;
+  $('#capCount').textContent = n;
+  const nb = $('#capNew'); const fresh = n - capSeen;
+  nb.textContent = fresh > 0 ? `+${fresh} API mới` : ''; nb.classList.toggle('hide', !(fresh > 0));
+  const tb = $('#capList'); if (!tb) return;
+  if (!capSupported) { tb.innerHTML = `<tr><td colspan="5" class="empty">Bookmark 📌 bạn đang dùng là bản cũ, chưa bắt được API.<br>Mở <a href="${esc(location.href.split('?')[0])}" target="_blank">trang tool</a>, kéo lại nút <b>📌 API Soi</b> mới lên thanh dấu trang (thay cái cũ).</td></tr>`; return; }
+  const rows = capRows();
+  tb.innerHTML = rows.length ? rows.map(({c, i, n}) => {
+    const st = c.status, cls = !st ? 'b-bad' : st < 300 ? 'b-ok' : st < 500 ? 'b-warn' : 'b-bad';
+    return `<tr><td class="muted" style="white-space:nowrap">${new Date(c.time).toLocaleTimeString('vi-VN')}</td>
+      <td><span class="badge m-${esc(c.method)}" style="border:1px solid">${esc(c.method)}</span></td>
+      <td><b class="mono" style="word-break:break-all">${esc(capName(c))}</b>${n > 1 ? ` <span class="badge">×${n}</span>` : ''}<div class="muted mono" style="font-size:11.5px">${esc(c.url.length > 110 ? c.url.slice(0, 110) + '…' : c.url)}</div></td>
+      <td style="white-space:nowrap"><span class="badge ${cls}">${st || 'lỗi'}</span> <span class="muted">${c.ms ?? '?'} ms</span></td>
+      <td><button class="btn-pri" data-cap="${i}">Nạp</button></td></tr>`;
+  }).join('') : '<tr><td colspan="5" class="empty">Chưa bắt được API nào.<br>Bấm <b>✕ Thu nhỏ tool</b> → thao tác trên hệ thống → bấm 📌 quay lại.</td></tr>';
+}
+function loadCap(i) {
+  const c = CAPS[i];
+  load({url: c.url, method: c.method, headers: Object.entries(c.headers || {}).map(([k, v]) => ({k, v: String(v), on: true})), body: c.body || '', referrer: ''});
+}
+function initPasteTabs() {
+  const on = MODE === 'bridge';
+  $('#pasteTabs').classList.toggle('hide', !on);
+  if (on) showPasteTab('cap');
+}
+function showPasteTab(t) {
+  $$('#pasteTabs [data-pt]').forEach(b => b.classList.toggle('on', b.dataset.pt === t));
+  $('#ptCap').classList.toggle('hide', t !== 'cap'); $('#ptPaste').classList.toggle('hide', t !== 'paste');
+  if (t === 'cap') { capSeen = CAPS.filter(c => !isNoise(c)).length; renderCaps(); }
+}
+// ---- lấy token mới nhất: ưu tiên API vừa bắt được cùng máy chủ, sau đó bộ nhớ trang ----
+async function freshToken() {
+  const host = safeURL(S.url)?.host;
+  const auth = c => Object.entries(c.headers || {}).find(([k]) => k.toLowerCase() === 'authorization')?.[1];
+  const hit = [...CAPS].reverse().find(c => auth(c) && safeURL(c.url)?.host === host) || [...CAPS].reverse().find(auth);
+  if (hit) return auth(hit);
+  const r = await askParent({type: 'token'});
+  return r.token ? 'Bearer ' + r.token : null;
+}
+async function refreshToken(rerun) {
+  const t = await freshToken();
+  if (!t) return alert('Không tìm thấy token trên trang hệ thống. Hãy thao tác 1 lần trên hệ thống (vd bấm Tìm kiếm) rồi thử lại.');
+  const h = S.headers.find(h => h.k.toLowerCase() === 'authorization');
+  const old = h && h.v;
+  if (h) { h.v = t; h.on = true; } else S.headers.push({k: 'authorization', v: t, on: true});
+  renderHeaders(); renderOverview(); renderCode();
+  if (old === t && !confirm('Token trên trang giống token đang dùng (có thể trang cũng hết phiên — hãy đăng nhập lại hệ thống). Vẫn chạy lại?')) return;
+  if (rerun) send();
 }
 function renderMode() {
   const m = $('#modeBar');
@@ -244,7 +342,8 @@ function renderMode() {
     m.innerHTML = `<div><b>⚠ Đang mở trực tiếp trên web</b> — API công ty sẽ bị chặn (chỉ cho trang hệ thống gọi). Cài nút bookmark 1 lần:
       <ol style="margin:6px 0 0;padding-left:20px"><li>Bật thanh dấu trang: <b>Ctrl+Shift+B</b></li>
       <li><b>Kéo thả</b> nút này lên thanh dấu trang: <a class="bm" id="bmLink" href="#" onclick="alert('Đừng bấm — hãy KÉO nút này thả lên thanh dấu trang.');return false">📌 API Soi</a></li>
-      <li>Mở hệ thống (vd indotrucking.smartlogvn.com), đăng nhập → bấm <b>📌 API Soi</b> trên thanh dấu trang → tool hiện ra và gọi API được.</li></ol></div>`;
+      <li>Mở hệ thống (vd indotrucking.smartlogvn.com), đăng nhập → bấm <b>📌 API Soi</b> trên thanh dấu trang → tool hiện ra, tự bắt API và gọi API được.</li></ol>
+      <div style="margin-top:4px;font-size:12.5px">Đã có bookmark từ trước 11/10/2026? Xóa cái cũ, kéo lại nút này (bản mới có thêm tự bắt API).</div></div>`;
     $('#bmLink').setAttribute('href', bookmarkletHref());
   }
 }
@@ -258,12 +357,7 @@ async function doRequest(spec) {
   const body = ['GET', 'HEAD'].includes(spec.method) ? undefined : (spec.body || undefined);
   if (MODE === 'bridge') {
     if (!bridgeOrigin) return {networkError: 'Chưa kết nối được với trang hệ thống. Tải lại trang hệ thống rồi bấm bookmark lại.'};
-    return new Promise(res => {
-      const id = Math.random().toString(36).slice(2);
-      pendingReq[id] = res;
-      window.parent.postMessage({type: 'req', id, url: spec.url, method: spec.method, headers, body}, bridgeOrigin);
-      setTimeout(() => { if (pendingReq[id]) { delete pendingReq[id]; res({networkError: 'Quá 3 phút không có phản hồi'}); } }, 180000);
-    });
+    return askParent({type: 'req', url: spec.url, method: spec.method, headers, body});
   }
   const t = Date.now();
   try {
@@ -538,7 +632,7 @@ function renderHeaders() {
     const key = h.k.toLowerCase(), info = HEADER_INFO[key] || (key.startsWith('sec-') ? ['Trình duyệt tự thêm — không cần.', 'bo'] : ['Header khác (có thể là header riêng của hệ thống).', 'nen']);
     const lv = LEVEL[info[1]];
     let extra = '';
-    if (key === 'authorization') extra = jwtPanel(h.v);
+    if (key === 'authorization') extra = jwtPanel(h.v) + (MODE === 'bridge' ? '<button data-tok style="margin-top:4px">🔄 Lấy token mới nhất từ trang</button>' : '');
     if (key === 'listactioncode' && h.v) { const a = h.v.split(',').filter(Boolean); extra = `<details style="margin-top:4px"><summary>${a.length} quyền — bấm để xem</summary><div class="chips" style="margin-top:4px">${a.sort().map(x => `<span class="chip">${esc(x)}</span>`).join('')}</div></details>`; }
     const long = h.v.length > 90;
     return `<tr ${h.on ? '' : 'style="opacity:.5"'}>
@@ -552,7 +646,8 @@ function renderHeaders() {
     <div class="scroll"><table><thead><tr><th style="width:40px">Dùng</th><th>Tên</th><th>Giá trị</th><th class="hidem">Ý nghĩa</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   $$('[data-hon]').forEach(el => el.onchange = () => { S.headers[+el.dataset.hon].on = el.checked; renderHeaders(); renderOverview(); renderCode(); });
   $$('[data-hv]').forEach(el => el.onchange = () => { S.headers[+el.dataset.hv].v = el.value.trim(); renderHeaders(); renderOverview(); renderCode(); });
-  $('#btnAddHdr').onclick = () => { const k = prompt('Tên header:'); if (!k) return; S.headers.push({k: k.trim(), v: prompt('Giá trị:') || '', on: true}); renderHeaders(); renderCode(); };
+  $$('#hdrCard [data-tok]').forEach(b => b.onclick = () => refreshToken(false));
+  $('#btnAddHdr').onclick =() => { const k = prompt('Tên header:'); if (!k) return; S.headers.push({k: k.trim(), v: prompt('Giá trị:') || '', on: true}); renderHeaders(); renderCode(); };
 }
 
 /* ================= TAB BODY ================= */
@@ -633,8 +728,8 @@ function renderBody() {
     const asTree = S.bodyObj !== undefined && bodyRawView === 'tree';
     content = (S.bodyObj !== undefined ? `<div class="row" style="margin-bottom:8px">
         <div class="seg"><button data-rawv="tree" class="${asTree ? 'on' : ''}">🌳 Dạng cây</button><button data-rawv="text" class="${asTree ? '' : 'on'}">📝 Dạng chữ (sửa được)</button></div>
-        ${asTree ? `<button id="bodyTreeAll">${bodyTreeAll ? '⊟ Thu gọn' : '⊞ Mở hết'}</button><span class="muted">Chỉ để xem — sửa ở các tab nhóm hoặc “Dạng chữ”.</span>` : ''}</div>` : '') +
-      (asTree ? '<div class="scroll tree" id="bodyTree"></div>'
+        ${asTree ? `<span class="muted">Chỉ để xem — sửa ở các tab nhóm hoặc “Dạng chữ”.</span>` : ''}</div>` : '') +
+      (asTree ? '<div id="bodyTreeWrap"></div>'
         : `<textarea id="bodyRaw" rows="22" spellcheck="false">${esc(S.bodyObj !== undefined ? JSON.stringify(S.bodyObj, null, 2) : S.body)}</textarea>
       <div class="row"><button class="btn-pri" id="btnBodyApply">Áp dụng chỉnh sửa</button><span id="bodyErr" class="explain"></span></div>`);
   } else {
@@ -655,10 +750,7 @@ function renderBody() {
 
   $$('#bodyCard [data-bg]').forEach(b => b.onclick = () => { bodyGroup = b.dataset.bg; renderBody(); });
   $$('#bodyCard [data-rawv]').forEach(b => b.onclick = () => { bodyRawView = b.dataset.rawv; renderBody(); });
-  if ($('#bodyTree')) {
-    renderTree($('#bodyTree'), S.bodyObj, {openAll: bodyTreeAll, ed});
-    $('#bodyTreeAll').onclick = () => { bodyTreeAll = !bodyTreeAll; renderBody(); };
-  }
+  if ($('#bodyTreeWrap')) mountTree($('#bodyTreeWrap'), S.bodyObj, bodyTreeSt, {ed}, renderBody);
   $$('#bodyCard [data-bv]').forEach(b => b.onclick = () => { bodyView = b.dataset.bv; if (bodyGroup === '__raw') bodyGroup = null; renderBody(); });
   const bs = $('#bodySearch');
   bs.oninput = () => { bodyQ = bs.value; clearTimeout(bs._t); bs._t = setTimeout(() => { renderBody(); const n = $('#bodySearch'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); };
@@ -732,7 +824,7 @@ async function send() {
   R = await doRequest({url: S.url, method: S.method, headers, body: S.body, referrer: S.referrer});
   btn.disabled = false; btn.textContent = '▶ Chạy thử';
   R.json = undefined; if (R.body) { try { R.json = JSON.parse(R.body); } catch {} }
-  arrPick = 0; tableQ = ''; resView = 'table';
+  arrPick = 0; tableQ = ''; resView = 'table'; tblFilter = null; resTreeSt.q = '';
   const arrs = R.json !== undefined ? sortedArrays(R.json) : [];
   RUNS.push({no: RUNS.length + 1, time: new Date(), status: R.status || 'ERR', bodyObj: clone(S.bodyObj), body: S.body, url: S.url, json: R.json, rows: arrs.length ? arrs[0].arr : null, arrPath: arrs.length ? arrs[0].path : null});
   if (RUNS.length > 15) RUNS.shift();
@@ -752,6 +844,8 @@ const sortedArrays = j => findArrays(j, [], []).sort((a, b) => b.arr.length - a.
 function pathLabel(p) { return p.length ? p.join(' › ') : '(gốc)'; }
 function cellText(v) { return v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); }
 function colsOf(arr) { const cols = [], seen = new Set(); arr.slice(0, 500).forEach(r => isPlain(r) && Object.keys(r).forEach(k => { if (!seen.has(k)) { seen.add(k); cols.push(k); } })); return cols; }
+let tblSort = {col: null, dir: 1}, tblFilter = null, colPanelOpen = false, statCol = null, statSum = '';
+const resTreeSt = {q: '', all: false}, bodyTreeSt = {q: '', all: false};
 function renderResp() {
   const c = $('#respCard');
   if (!R) { c.innerHTML = '<div class="empty"><div class="ic">🚀</div>Chưa chạy. Bấm <b>▶ Chạy thử</b> ở trên.</div>'; $('#cntRes').innerHTML = ''; return; }
@@ -763,37 +857,41 @@ function renderResp() {
   let errMsg = '';
   if (R.status >= 400 && isPlain(R.json)) { const m = R.json.Message || R.json.message || R.json.error || R.json.title || R.json.ExceptionMessage || R.json.errors; if (m) errMsg = typeof m === 'string' ? m : JSON.stringify(m); }
   const totalKey = isPlain(R.json) ? Object.keys(R.json).find(k => /^total(count)?$/i.test(k) && typeof R.json[k] === 'number') : null;
-  if (!arrs.length && resView === 'table') resView = 'tree';
+  if (!arrs.length && ['table', 'stats'].includes(resView)) resView = 'tree';
   const a = arrs.length ? arrs[Math.min(arrPick, arrs.length - 1)] : null;
   let html = `<div class="row" style="gap:14px">
       <span class="badge ${cls} status-big">${R.status} ${esc(R.statusText)}</span>
       <span>${STATUS_INFO[R.status] || (R.status < 300 ? 'Thành công.' : R.status < 500 ? 'Lỗi phía yêu cầu gửi đi.' : 'Lỗi phía server.')}</span>
       <span class="grow"></span><span class="muted">⏱ ${R.timeMs} ms · 📦 ${fmtSize(R.size)} · lần chạy #${RUNS.length ? RUNS[RUNS.length - 1].no : '?'}</span></div>`;
   if (errMsg) html += `<div class="note n-bad"><b>Server báo:</b> ${esc(errMsg)}</div>`;
+  if (R.status === 401 && MODE === 'bridge') html += `<div class="note n-warn row">Token hết hạn? <button class="btn-pri" id="btnTok401">🔄 Lấy token mới từ trang &amp; chạy lại</button></div>`;
   if (R.status >= 400 && S.origObj && editedSet().size) html += `<div class="note n-warn">Bạn đang sửa ${editedSet().size} trường trong body — lỗi có thể do đó. Xem tab <b>Body</b> (lọc “Đã sửa”) hoặc bấm ↺ Hoàn tác.</div>`;
   if (a) html += `<div class="note n-info">Danh sách <b>${esc(pathLabel(a.path))}</b>: <b>${a.arr.length}</b> dòng${totalKey ? ` / server báo tổng <b>${R.json[totalKey]}</b> (${esc(totalKey)})${R.json[totalKey] > a.arr.length ? ' → chưa lấy hết, tăng <b>pageSize</b> trong Body' : ''}` : ''}.</div>`;
   html += `<div class="subtabs">
-      ${arrs.length ? `<button class="stab ${resView === 'table' ? 'on' : ''}" data-rv="table">📋 Bảng dữ liệu</button>` : ''}
+      ${arrs.length ? `<button class="stab ${resView === 'table' ? 'on' : ''}" data-rv="table">📋 Bảng dữ liệu</button><button class="stab ${resView === 'stats' ? 'on' : ''}" data-rv="stats">📊 Thống kê</button>` : ''}
       <button class="stab ${resView === 'tree' ? 'on' : ''}" data-rv="tree">🌳 ${R.json !== undefined ? 'JSON dạng cây' : 'Nội dung'}</button>
       <button class="stab ${resView === 'raw' ? 'on' : ''}" data-rv="raw">📄 Thô</button>
       <button class="stab ${resView === 'hdr' ? 'on' : ''}" data-rv="hdr">🏷 Headers trả về</button></div><div id="resBody"></div>`;
   c.innerHTML = html;
   $$('#respCard [data-rv]').forEach(b => b.onclick = () => { resView = b.dataset.rv; renderResp(); });
+  const t4 = $('#btnTok401'); if (t4) t4.onclick = () => refreshToken(true);
   const box = $('#resBody');
   if (resView === 'table' && arrs.length) renderTable(arrs, box);
+  else if (resView === 'stats' && arrs.length) renderStats(arrs, box);
   else if (resView === 'tree') {
-    if (R.json !== undefined) {
-      box.innerHTML = `<div class="row" style="margin-bottom:8px"><button id="resTreeAll">${resTreeAll ? '⊟ Thu gọn' : '⊞ Mở hết'}</button></div><div class="scroll tree" id="resTree"></div>`;
-      renderTree($('#resTree'), R.json, {openAll: resTreeAll});
-      $('#resTreeAll').onclick = () => { resTreeAll = !resTreeAll; renderResp(); };
-    }
+    if (R.json !== undefined) { box.innerHTML = '<div id="resTreeWrap"></div>'; mountTree($('#resTreeWrap'), R.json, resTreeSt, {}, renderResp); }
     else if (/html/i.test(ct)) box.innerHTML = `<div class="note n-warn">Server trả về trang HTML, không phải dữ liệu — thường do chưa đăng nhập / sai địa chỉ.</div><iframe sandbox style="width:100%;height:400px;border:1px solid var(--line);border-radius:8px;background:#fff" srcdoc="${esc(R.body)}"></iframe>`;
     else box.innerHTML = `<div class="codebox"><pre>${esc(R.body || '(trống)')}</pre></div>`;
   } else if (resView === 'raw') box.innerHTML = `<div class="codebox"><pre>${esc(R.body.length > 500000 ? R.body.slice(0, 500000) + '\n… (cắt bớt, quá dài)' : R.body || '(trống)')}</pre></div>`;
   else if (resView === 'hdr') box.innerHTML = `<div class="scroll"><table>${Object.entries(R.headers).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v)}</td></tr>`).join('')}</table></div>`;
 }
-function gridHtml(cols, rows, lim, rowCls) {
-  return `<div class="scroll"><table class="grid"><thead><tr><th>#</th>${cols.map(c => `<th title="${esc(guessVN(c))}">${esc(c)}</th>`).join('')}</tr></thead>
+function gridHtml(cols, rows, lim, rowCls, sortable) {
+  const th = c => {
+    if (!sortable) return `<th title="${esc(guessVN(c))}">${esc(c)}</th>`;
+    const on = tblSort.col === c, arrow = on ? (tblSort.dir > 0 ? ' ▲' : ' ▼') : '';
+    return `<th data-sort="${esc(c)}" class="sortable ${on ? 'sorted' : ''}" title="Bấm để sắp xếp${guessVN(c) ? ' · ≈ ' + esc(guessVN(c)) : ''}">${esc(c)}${arrow}</th>`;
+  };
+  return `<div class="scroll"><table class="grid"><thead><tr><th>#</th>${cols.map(th).join('')}</tr></thead>
     <tbody>${rows.slice(0, lim).map((r, i) => `<tr ${rowCls ? `class="${rowCls}"` : ''}><td class="muted">${i + 1}</td>${cols.map(c => { const t = cellText(r?.[c]); return `<td title="${esc(t)}">${esc(t)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 function downloadCsv(cols, rows, name) {
@@ -802,19 +900,58 @@ function downloadCsv(cols, rows, name) {
   const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
   link.download = `${name}_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`; link.click();
 }
-function renderTable(arrs, box) {
-  const a = arrs[Math.min(arrPick, arrs.length - 1)], cols = colsOf(a.arr);
+// cột ẩn được nhớ theo từng API (trên trình duyệt này)
+const hideKey = () => 'apisoi.hide.' + endpointName();
+function getHidden() { try { return new Set(JSON.parse(localStorage.getItem(hideKey()) || '[]')); } catch { return new Set(); } }
+function setHidden(s) { try { localStorage.setItem(hideKey(), JSON.stringify([...s])); } catch {} }
+const isBlank = v => v == null || v === '';
+function cmpVals(a, b) {
+  if (isBlank(a)) return isBlank(b) ? 0 : 1;
+  if (isBlank(b)) return -1;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return cellText(a).localeCompare(cellText(b), 'vi', {numeric: true, sensitivity: 'base'});
+}
+function tableRows(a, cols) {
+  let rows = a.arr;
+  if (tblFilter) rows = rows.filter(r => cellText(r?.[tblFilter.col]) === tblFilter.val);
   const q = tableQ.toLowerCase();
-  const rows = q ? a.arr.filter(r => cols.some(c => cellText(r?.[c]).toLowerCase().includes(q))) : a.arr;
+  if (q) rows = rows.filter(r => cols.some(c => cellText(r?.[c]).toLowerCase().includes(q)));
+  if (tblSort.col) rows = [...rows].sort((x, y) => cmpVals(x?.[tblSort.col], y?.[tblSort.col]) * tblSort.dir);
+  return rows;
+}
+function renderTable(arrs, box) {
+  const a = arrs[Math.min(arrPick, arrs.length - 1)], allCols = colsOf(a.arr), hidden = getHidden();
+  const cols = allCols.filter(c => !hidden.has(c)), rows = tableRows(a, cols);
   const LIM = 1000;
   box.innerHTML = `<div class="row" style="margin-bottom:8px">
       ${arrs.length > 1 ? `<select id="arrSel">${arrs.map((x, i) => `<option value="${i}" ${i === arrPick ? 'selected' : ''}>${esc(pathLabel(x.path))} (${x.arr.length} dòng)</option>`).join('')}</select>` : ''}
       <input id="tblQ" class="grow" placeholder="🔎 Tìm trong bảng…" value="${esc(tableQ)}">
+      <button id="btnCols" class="${colPanelOpen ? 'on' : ''}">🧩 Cột ${cols.length}/${allCols.length}</button>
       <button id="btnCsv">⬇ Tải CSV</button><button id="btnTsv">📋 Chép để dán Excel</button>
       <span class="badge b-brand">${rows.length} dòng × ${cols.length} cột</span>${rows.length > LIM ? `<span class="muted">hiển thị ${LIM} dòng đầu</span>` : ''}</div>
-    ${gridHtml(cols, rows, LIM)}`;
-  const sel = $('#arrSel'); if (sel) sel.onchange = () => { arrPick = +sel.value; renderTable(arrs, box); renderCode(); };
-  const qi = $('#tblQ'); qi.oninput = () => { tableQ = qi.value; clearTimeout(qi._t); qi._t = setTimeout(() => { renderTable(arrs, box); const n = $('#tblQ'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); };
+    ${tblFilter || tblSort.col ? `<div class="row" style="margin-bottom:8px">
+      ${tblFilter ? `<span class="chip">Đang lọc <b>${esc(tblFilter.col)}</b> = ${esc(tblFilter.val || '(trống)')}</span><button id="clrFilter">✕ Bỏ lọc</button>` : ''}
+      ${tblSort.col ? `<span class="chip">Sắp xếp <b>${esc(tblSort.col)}</b> ${tblSort.dir > 0 ? 'tăng dần ▲' : 'giảm dần ▼'}</span><button id="clrSort">✕ Bỏ sắp xếp</button>` : ''}</div>` : ''}
+    <div id="colPanel" class="colpanel ${colPanelOpen ? '' : 'hide'}">
+      <div class="row" style="margin-bottom:6px"><input id="colQ" class="grow" placeholder="Tìm cột…"><button id="colAll">Hiện tất cả</button><button id="colNone">Ẩn tất cả</button><span class="muted">Ẩn/hiện được nhớ cho API này</span></div>
+      <div class="colgrid">${allCols.map(c => `<label data-cn="${esc(c.toLowerCase())}"><input type="checkbox" data-col="${esc(c)}" ${hidden.has(c) ? '' : 'checked'}> <span class="mono">${esc(c)}</span></label>`).join('')}</div>
+    </div>
+    ${cols.length ? gridHtml(cols, rows, LIM, '', true) : '<div class="empty">Đang ẩn hết cột — bấm 🧩 Cột để hiện lại.</div>'}`;
+  const again = () => renderTable(arrs, box);
+  const sel = $('#arrSel'); if (sel) sel.onchange = () => { arrPick = +sel.value; tblFilter = null; tblSort = {col: null, dir: 1}; statCol = null; again(); renderCode(); };
+  const qi = $('#tblQ'); qi.oninput = () => { tableQ = qi.value; clearTimeout(qi._t); qi._t = setTimeout(() => { again(); const n = $('#tblQ'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); };
+  $$('#resBody [data-sort]').forEach(th => th.onclick = () => {
+    const c = th.dataset.sort;
+    tblSort = tblSort.col !== c ? {col: c, dir: 1} : tblSort.dir > 0 ? {col: c, dir: -1} : {col: null, dir: 1};
+    again();
+  });
+  const cf = $('#clrFilter'); if (cf) cf.onclick = () => { tblFilter = null; again(); };
+  const cs = $('#clrSort'); if (cs) cs.onclick = () => { tblSort = {col: null, dir: 1}; again(); };
+  $('#btnCols').onclick = () => { colPanelOpen = !colPanelOpen; again(); };
+  $('#colQ').oninput = e => { const q = e.target.value.toLowerCase(); $$('#colPanel [data-cn]').forEach(l => l.classList.toggle('hide', !l.dataset.cn.includes(q))); };
+  $$('#colPanel [data-col]').forEach(ch => ch.onchange = () => { const s = getHidden(); ch.checked ? s.delete(ch.dataset.col) : s.add(ch.dataset.col); setHidden(s); again(); });
+  $('#colAll').onclick = () => { setHidden(new Set()); again(); };
+  $('#colNone').onclick = () => { setHidden(new Set(allCols)); again(); };
   $('#btnCsv').onclick = () => downloadCsv(cols, rows, endpointName());
   $('#btnTsv').onclick = async () => {
     const e = v => cellText(v).replace(/[\t\r\n]+/g, ' ');
@@ -822,22 +959,87 @@ function renderTable(arrs, box) {
     $('#btnTsv').textContent = '✓ Đã chép — Ctrl+V vào Excel';
   };
 }
+
+/* ---- Thống kê nhanh ---- */
+const fmtNum = n => Number(n).toLocaleString('vi-VN', {maximumFractionDigits: 2});
+function colProfile(arr, cols) {
+  return cols.map(c => {
+    let empty = 0, nums = 0, sum = 0, min = Infinity, max = -Infinity; const set = new Set();
+    for (const r of arr) {
+      const v = r?.[c];
+      if (isBlank(v)) { empty++; continue; }
+      set.add(cellText(v));
+      if (typeof v === 'number') { nums++; sum += v; if (v < min) min = v; if (v > max) max = v; }
+    }
+    return {c, empty, distinct: set.size, isNum: nums > 0 && nums === arr.length - empty, sum, min, max};
+  });
+}
+function renderStats(arrs, box) {
+  const a = arrs[Math.min(arrPick, arrs.length - 1)], cols = colsOf(a.arr), prof = colProfile(a.arr, cols);
+  if (!statCol || !cols.includes(statCol))
+    statCol = (prof.find(p => /status|trangthai|type|loai/i.test(p.c) && p.distinct > 1 && p.distinct <= 50) || prof.find(p => !p.isNum && p.distinct > 1 && p.distinct <= 30) || prof[0] || {}).c;
+  const numCols = prof.filter(p => p.isNum).map(p => p.c);
+  if (statSum && !numCols.includes(statSum)) statSum = '';
+  const g = new Map();
+  for (const r of a.arr) {
+    const k = cellText(r?.[statCol]), o = g.get(k) || {n: 0, sum: 0};
+    o.n++; if (statSum && typeof r?.[statSum] === 'number') o.sum += r[statSum];
+    g.set(k, o);
+  }
+  const groups = [...g.entries()].sort((x, y) => y[1].n - x[1].n), total = a.arr.length, maxN = groups.length ? groups[0][1].n : 1;
+  const sumAll = groups.reduce((s, [, o]) => s + o.sum, 0), SHOW = 200;
+  box.innerHTML = `<div class="row" style="margin-bottom:8px">
+      <b>Đếm theo cột</b> <select id="stCol">${cols.map(c => `<option ${c === statCol ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      <b>Cộng tổng cột</b> <select id="stSum"><option value="">— chỉ đếm —</option>${numCols.map(c => `<option ${c === statSum ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      <span class="grow"></span><button id="stCsv">⬇ Tải CSV</button></div>
+    <div class="muted" style="margin-bottom:6px">${groups.length} giá trị khác nhau trong ${fmtNum(total)} dòng · bấm 🔍 để xem các dòng đó trong bảng</div>
+    <div class="scroll" style="max-height:calc(100vh - 420px)"><table>
+      <thead><tr><th>${esc(statCol || '')}</th><th style="text-align:right">Số dòng</th><th style="width:30%">Tỉ lệ</th><th style="text-align:right">%</th>${statSum ? `<th style="text-align:right">Tổng ${esc(statSum)}</th>` : ''}<th></th></tr></thead>
+      <tbody>${groups.slice(0, SHOW).map(([k, o], i) => `<tr>
+        <td>${k === '' ? '<span class="muted">(trống)</span>' : esc(k)}</td>
+        <td style="text-align:right" class="mono">${fmtNum(o.n)}</td>
+        <td><div class="bar" title="${esc(k || '(trống)')}: ${fmtNum(o.n)} dòng (${(o.n / total * 100).toFixed(1)}%)"><span style="width:${Math.max(o.n / maxN * 100, 0.5)}%"></span></div></td>
+        <td style="text-align:right" class="mono">${(o.n / total * 100).toFixed(1)}%</td>
+        ${statSum ? `<td style="text-align:right" class="mono">${fmtNum(o.sum)}</td>` : ''}
+        <td><button data-stv="${i}" title="Xem các dòng này trong bảng">🔍</button></td></tr>`).join('')}
+        <tr class="grp"><td>Tổng cộng</td><td style="text-align:right" class="mono">${fmtNum(total)}</td><td></td><td style="text-align:right" class="mono">100%</td>${statSum ? `<td style="text-align:right" class="mono">${fmtNum(sumAll)}</td>` : ''}<td></td></tr>
+      </tbody></table></div>
+    ${groups.length > SHOW ? `<div class="muted">… còn ${groups.length - SHOW} giá trị (tải CSV để xem đủ)</div>` : ''}
+    <details class="mt"><summary><b>📋 Hồ sơ các cột</b> <span class="muted">— mỗi cột có bao nhiêu giá trị, bao nhiêu ô trống, tổng/min/max</span></summary>
+      <div class="scroll mt" style="max-height:400px"><table><thead><tr><th>Cột</th><th style="text-align:right">Giá trị khác nhau</th><th style="text-align:right">Ô trống</th><th>Kiểu</th><th style="text-align:right">Tổng</th><th style="text-align:right">Nhỏ nhất</th><th style="text-align:right">Lớn nhất</th></tr></thead>
+      <tbody>${prof.map(p => `<tr><td><a href="#" data-pc="${esc(p.c)}" class="mono" title="Đếm theo cột này">${esc(p.c)}</a></td>
+        <td style="text-align:right" class="mono">${fmtNum(p.distinct)}</td>
+        <td style="text-align:right" class="mono">${p.empty ? `${fmtNum(p.empty)} <span class="muted">(${(p.empty / total * 100).toFixed(0)}%)</span>` : '0'}</td>
+        <td>${p.isNum ? '<span class="badge b-info">số</span>' : p.distinct ? '<span class="badge">chữ</span>' : '<span class="badge">trống hết</span>'}</td>
+        <td style="text-align:right" class="mono">${p.isNum ? fmtNum(p.sum) : ''}</td><td style="text-align:right" class="mono">${p.isNum ? fmtNum(p.min) : ''}</td><td style="text-align:right" class="mono">${p.isNum ? fmtNum(p.max) : ''}</td></tr>`).join('')}</tbody></table></div></details>`;
+  const again = () => renderStats(arrs, box);
+  $('#stCol').onchange = e => { statCol = e.target.value; again(); };
+  $('#stSum').onchange = e => { statSum = e.target.value; again(); };
+  $$('#resBody [data-stv]').forEach(b => b.onclick = () => { tblFilter = {col: statCol, val: groups[+b.dataset.stv][0]}; tableQ = ''; resView = 'table'; renderResp(); });
+  $$('#resBody [data-pc]').forEach(l => l.onclick = e => { e.preventDefault(); statCol = l.dataset.pc; again(); });
+  $('#stCsv').onclick = () => downloadCsv([statCol, 'SoDong', 'PhanTram', ...(statSum ? ['Tong_' + statSum] : [])],
+    groups.map(([k, o]) => ({[statCol]: k, SoDong: o.n, PhanTram: (o.n / total * 100).toFixed(2), ...(statSum ? {['Tong_' + statSum]: o.sum} : {})})), 'thong-ke_' + endpointName());
+}
+
 function fmtVal(v) {
   if (v === null) return '<span class="vnull">null</span>';
   if (typeof v === 'string') return `<span class="vs">"${esc(v)}"</span>${ISO_RE.test(v) && ISO_TZ_RE.test(v) ? ` <span class="muted">(giờ VN ${VN(new Date(v))})</span>` : ''}`;
   if (typeof v === 'number') return `<span class="vn">${v}</span>`;
   return `<span class="vb">${v}</span>`;
 }
-// Cây JSON: ctx = {nodes: [], openAll, ed: Set đường dẫn đã sửa (chỉ dùng cho body)}
+/* ---- Cây JSON ----
+   ctx = {nodes, openAll, ed: Set đường dẫn đã sửa (body), open: Set nhánh cần mở (khi tìm), hits: Set dòng khớp (khi tìm)} */
 function treeHtml(v, k, depth, ctx, path) {
-  const key = k != null ? `<span class="k">${esc(k)}</span>: ` : '';
-  const ed = ctx.ed && ctx.ed.has(pkey(path)), mark = ed ? ' <span class="badge b-warn">đã sửa</span>' : '';
+  const pk = pkey(path), key = k != null ? `<span class="k">${esc(k)}</span>: ` : '';
+  const ed = ctx.ed && ctx.ed.has(pk), mark = ed ? ' <span class="badge b-warn">đã sửa</span>' : '';
+  const cls = [ed ? 'tedit' : '', ctx.hits && ctx.hits.has(pk) ? 'hit' : ''].join(' ').trim();
   if (v && typeof v === 'object') {
     const isA = Array.isArray(v), n = isA ? v.length : Object.keys(v).length;
-    const id = ctx.nodes.push({v, depth, path}) - 1, open = ctx.openAll || (depth < 2 && n <= 50);
-    return `<details data-node="${id}" ${open ? 'open' : ''}><summary ${ed ? 'class="tedit"' : ''}>${key}<span class="muted">${isA ? `[${n} phần tử]` : `{${n} trường}`}</span>${mark}</summary><div>${open ? treeChildren(v, depth, ctx, path) : ''}</div></details>`;
+    const open = ctx.openAll || (ctx.open ? ctx.open.has(pk) : depth < 2 && n <= 50);
+    const id = ctx.nodes.push({v, depth, path}) - 1;
+    return `<details data-node="${id}" ${open ? 'open' : ''}><summary ${cls ? `class="${cls}"` : ''}>${key}<span class="muted">${isA ? `[${n} phần tử]` : `{${n} trường}`}</span>${mark}</summary><div>${open ? treeChildren(v, depth, ctx, path) : ''}</div></details>`;
   }
-  return `<div ${ed ? 'class="tedit"' : ''}>${key}${fmtVal(v)}${mark}</div>`;
+  return `<div ${cls ? `class="${cls}"` : ''}>${key}${fmtVal(v)}${mark}</div>`;
 }
 function treeChildren(v, depth, ctx, path) {
   const isA = Array.isArray(v), ent = isA ? v.slice(0, 300).map((x, i) => [i, x]) : Object.entries(v);
@@ -852,7 +1054,52 @@ function renderTree(box, v, ctx) {
     const n = ctx.nodes[+d.dataset.node]; body.innerHTML = treeChildren(n.v, n.depth, ctx, n.path);
   }, true);
 }
-let resTreeAll = false, bodyTreeAll = false, bodyRawView = 'tree';
+// tìm trong cây: trả về các dòng khớp (tên trường hoặc giá trị) + các nhánh cần mở để thấy chúng
+function treeMatches(v, q, path = [], out = {hits: new Set(), open: new Set(), n: 0}) {
+  if (out.n >= 2000 || !v || typeof v !== 'object') return out;
+  const isA = Array.isArray(v), ent = isA ? v.slice(0, 300).map((x, i) => [i, x]) : Object.entries(v);
+  for (const [k, x] of ent) {
+    const p = path.concat(k), leaf = !(x && typeof x === 'object');
+    if ((!isA && String(k).toLowerCase().includes(q)) || (leaf && cellText(x).toLowerCase().includes(q))) {
+      out.hits.add(pkey(p)); out.n++;
+      for (let i = 0; i < p.length; i++) out.open.add(pkey(p.slice(0, i)));
+    }
+    if (!leaf) treeMatches(x, q, p, out);
+  }
+  return out;
+}
+// khung cây có ô tìm + ▲▼ + mở hết; rerender = hàm vẽ lại phần chứa nó
+function mountTree(wrap, data, st, extra, rerender) {
+  const q = (st.q || '').trim().toLowerCase(), m = q ? treeMatches(data, q) : null, wid = wrap.id;
+  wrap.innerHTML = `<div class="row" style="margin-bottom:8px">
+      <input class="grow" data-tq placeholder="🔎 Tìm trong cây: tên trường hoặc giá trị (vd 48102, Status) — Enter để nhảy tiếp" value="${esc(st.q || '')}">
+      ${q ? `<span class="badge ${m.n ? 'b-brand' : 'b-bad'}" data-tc>${m.n ? '1/' + m.n : 'không thấy'}</span><button data-tp title="Kết quả trước">▲</button><button data-tn title="Kết quả sau">▼</button>` : ''}
+      <button data-ta>${st.all ? '⊟ Thu gọn' : '⊞ Mở hết'}</button></div>
+    <div class="scroll tree" data-tb></div>`;
+  const box = wrap.querySelector('[data-tb]');
+  renderTree(box, data, {...extra, openAll: st.all && !q, open: m ? m.open : null, hits: m ? m.hits : null});
+  const inp = wrap.querySelector('[data-tq]');
+  inp.oninput = () => {
+    st.q = inp.value; clearTimeout(inp._t);
+    inp._t = setTimeout(() => { rerender(); const n = document.querySelector(`#${wid} [data-tq]`); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 300);
+  };
+  wrap.querySelector('[data-ta]').onclick = () => { st.all = !st.all; st.q = ''; rerender(); };
+  if (q && m.n) {
+    let cur = 0;
+    const go = i => {
+      const h = [...box.querySelectorAll('.hit')]; if (!h.length) return;
+      cur = (i + h.length) % h.length;
+      h.forEach(x => x.classList.remove('cur')); h[cur].classList.add('cur');
+      box.scrollTop += h[cur].getBoundingClientRect().top - box.getBoundingClientRect().top - box.clientHeight / 2;
+      wrap.querySelector('[data-tc]').textContent = `${cur + 1}/${h.length}${m.n >= 2000 ? '+' : ''}`;
+    };
+    wrap.querySelector('[data-tn]').onclick = () => go(cur + 1);
+    wrap.querySelector('[data-tp]').onclick = () => go(cur - 1);
+    inp.onkeydown = e => { if (e.key === 'Enter') go(cur + (e.shiftKey ? -1 : 1)); };
+    go(0);
+  }
+}
+let bodyRawView = 'tree';
 
 /* ================= TAB SO SÁNH ================= */
 let cmpA = null, cmpB = null, cmpKey = null, cmpView = 'body';
@@ -1004,6 +1251,9 @@ function load(req) {
   if (S.body) { try { S.bodyObj = JSON.parse(S.body); } catch {} }
   S.origObj = clone(S.bodyObj);
   R = null; RUNS = []; arrPick = 0; tableQ = ''; bodyGroup = null; bodyQ = ''; bodyView = 'set'; cmpKey = null; cmpView = 'body';
+  tblSort = {col: null, dir: 1}; tblFilter = null; statCol = null; statSum = ''; colPanelOpen = false;
+  Object.assign(resTreeSt, {q: '', all: false}); Object.assign(bodyTreeSt, {q: '', all: false});
+  capSeen = CAPS.filter(c => !isNoise(c)).length; renderCaps();
   $('#pasteCard').classList.add('hide'); $('#loadedBar').classList.remove('hide'); $('#btnCancelPaste').classList.remove('hide');
   $('#loadedName').textContent = endpointName();
   $('#loadedInfo').textContent = '· nạp lúc ' + new Date().toLocaleTimeString('vi-VN');
@@ -1013,8 +1263,16 @@ $('#btnParse').onclick = () => {
   const e = $('#parseErr'); e.classList.add('hide');
   try { load(parseInput($('#input').value)); } catch (err) { e.textContent = err.message; e.classList.remove('hide'); }
 };
-$('#btnNewPaste').onclick = () => { $('#pasteCard').classList.remove('hide'); $('#input').value = ''; $('#input').focus(); };
+$('#btnNewPaste').onclick = () => {
+  $('#pasteCard').classList.remove('hide'); $('#input').value = '';
+  if (MODE === 'bridge') showPasteTab('cap'); else $('#input').focus();
+};
 $('#btnCancelPaste').onclick = () => $('#pasteCard').classList.add('hide');
+$$('#pasteTabs [data-pt]').forEach(b => b.onclick = () => showPasteTab(b.dataset.pt));
+$('#capQ').oninput = renderCaps; $('#capDedup').onchange = renderCaps;
+$('#capClear').onclick = () => { CAPS = []; capSeen = 0; renderCaps(); };
+$('#capList').onclick = e => { const b = e.target.closest('[data-cap]'); if (b) loadCap(+b.dataset.cap); };
+initPasteTabs();
 $('#btnSend').onclick = send;
 $('#url').onchange = () => { S.url = $('#url').value.trim(); $('#loadedName').textContent = endpointName(); renderOverview(); renderCode(); };
 $('#method').onchange = () => { S.method = $('#method').value; paintMethod(); renderOverview(); renderBody(); renderCode(); };
