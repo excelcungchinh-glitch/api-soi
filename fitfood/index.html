@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fitfood Gom Đơn</title>
+<style>
+:root{--bg:#f3f6f4;--card:#fff;--fg:#1c2a22;--muted:#5f6f66;--line:#dfe7e2;--acc:#15803d;--acc2:#0d9488;--warn:#fff4d6;--warn-fg:#8a5a00}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111714;--card:#1a221d;--fg:#e3ebe6;--muted:#9aaba1;--line:#2b3830;--acc:#4ade80;--acc2:#2dd4bf;--warn:#3a2e10;--warn-fg:#fbbf24}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "Segoe UI",system-ui,sans-serif}
+.top{background:linear-gradient(110deg,#15803d,#0d9488);color:#fff;padding:22px 16px}
+.top h1{margin:0;font-size:24px}.top p{margin:4px 0 0;opacity:.9}
+.wrap{max-width:860px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:14px 0}
+h2{font-size:17px;margin:0 0 8px}
+ol{margin:6px 0;padding-left:22px}li{margin:4px 0}
+.bm{display:inline-block;padding:8px 18px;border-radius:10px;background:linear-gradient(110deg,#15803d,#0d9488);color:#fff;font-weight:700;text-decoration:none;cursor:grab}
+.note{background:var(--warn);color:var(--warn-fg);padding:10px 14px;border-radius:10px}
+.muted{color:var(--muted)}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="top"><div class="wrap" style="padding:0 16px"><h1>🥗 Fitfood · Gom đơn hàng</h1><p>Tải đơn nhiều tuần, gộp tất cả các trang, thống kê và xuất Excel — ngay trên trang admin fitfood.</p></div></div>
+<div class="wrap">
+  <div class="card">
+    <h2>Cài 1 lần</h2>
+    <ol>
+      <li>Bật thanh dấu trang: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd></li>
+      <li><b>Kéo thả</b> nút này lên thanh dấu trang: <a class="bm" id="bm" href="#" onclick="alert('Đừng bấm — hãy KÉO nút này thả lên thanh dấu trang.');return false">🥗 Fitfood Gom Đơn</a></li>
+    </ol>
+  </div>
+  <div class="card">
+    <h2>Mỗi lần dùng</h2>
+    <ol>
+      <li>Đăng nhập <b>fitfood.vn/admin</b>, mở trang <b>Order listing</b>.</li>
+      <li>Bấm <b>🥗 Fitfood Gom Đơn</b> trên thanh dấu trang → tool hiện ra.</li>
+      <li>Chọn <b>Từ tuần – Đến tuần</b> → bấm <b>⬇ Tải dữ liệu</b>. Tool tự lật hết các trang của từng tuần.</li>
+      <li>Xem 4 tab: <b>Đơn hàng</b> · <b>Chi tiết gói</b> · <b>Suất ăn theo ngày</b> · <b>Thống kê</b> → bấm <b>📗 Xuất Excel</b> (3 sheet).</li>
+    </ol>
+    <p class="muted">Muốn lọc thêm (khách, gói, phường…): chọn bộ lọc trên trang fitfood, bấm Search, rồi mở tool và tick <b>Giữ bộ lọc đang chọn trên trang</b>.</p>
+  </div>
+  <div class="note">Tool chạy trong trình duyệt của bạn bằng phiên đăng nhập fitfood của bạn. Dữ liệu khách hàng không gửi đi đâu — chỉ nằm trên máy bạn và trong file Excel bạn tải về.</div>
+</div>
+<script>
+  const js = new URL('fitfood.js', location.href.split('?')[0]).href;
+  const src = `(()=>{if(window.__ffTool){__ffTool.toggle();return}const s=document.createElement('script');s.src=${JSON.stringify(js)}+'?v='+Date.now();s.onerror=()=>alert('Không tải được tool Fitfood');document.documentElement.appendChild(s)})()`;
+  document.getElementById('bm').setAttribute('href', 'javascript:' + encodeURIComponent(src));
+</script>
+</body>
+</html>
