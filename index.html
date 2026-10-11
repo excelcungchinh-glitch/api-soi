@@ -150,7 +150,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-all;font-family:var(--mono);f
     <div id="ptCap" class="hide">
       <div class="note n-info row" style="margin-top:0">
         <button class="btn-pri btn-run" id="btnCapture">🎯 Bắt API</button>
-        <span>Bấm nút này → tool thu nhỏ thành <b>nút nổi góc phải</b> → trên hệ thống bấm <b>Tìm kiếm</b> / mở màn hình cần soi → bấm nút nổi để quay lại → chọn API bên dưới.</span>
+        <span>Bấm nút này → màn hình <b>chia đôi</b>: hệ thống bên trái, tool bên phải → bên trái bấm <b>Tìm kiếm</b> / mở màn hình cần soi → API hiện ngay ở đây → bấm <b>Nạp</b>.</span>
       </div>
       <div class="muted" id="capDiag" style="font-size:12.5px;margin-bottom:6px"></div>
       <div class="row" style="margin-bottom:8px">
@@ -159,7 +159,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-all;font-family:var(--mono);f
         <button id="capClear">Xóa danh sách</button>
       </div>
       <div class="scroll" style="max-height:420px"><table><thead><tr><th>Lúc</th><th>Method</th><th>API</th><th>Kết quả</th><th></th></tr></thead><tbody id="capList"></tbody></table></div>
-      <details class="mt" id="pastBox"><summary><b>API trang đã gọi TRƯỚC khi bấm 📌</b> <span class="badge" id="pastCount">0</span> <span class="muted">— chỉ biết tên, không có body/token. Muốn nạp: bấm 🎯 rồi làm lại thao tác đó trên hệ thống.</span></summary>
+      <details class="mt" id="pastBox"><summary><b>API chỉ biết tên</b> <span class="badge" id="pastCount">0</span> <span class="muted">— trang gọi trước khi bấm 📌 nên không có body/token. Muốn nạp: làm lại thao tác đó trên hệ thống.</span></summary>
         <div class="scroll mt" style="max-height:260px"><table><tbody id="pastList"></tbody></table></div></details>
     </div>
     <div id="ptPaste">
@@ -247,12 +247,15 @@ const MODE = new URLSearchParams(location.search).has('bridge') && window.parent
   : /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? 'local' : 'web';
 let bridgeOrigin = null; const pendingReq = {};
 const FORBIDDEN_HDR = k => /^(cookie2?|host|content-length|connection|accept-encoding|accept-charset|referer|origin|user-agent|te|trailer|transfer-encoding|upgrade|via|keep-alive|expect|date|dnt|priority)$/i.test(k) || /^(sec-|proxy-)/i.test(k);
-let CAPS = [], PAST = [], capSupported = false, capSeen = 0, bridgeVer = 0;   // API bắt được từ trang hệ thống
+let CAPS = [], PAST = [], SEEN = [], capSupported = false, capSeen = 0, bridgeVer = 0, bridgeStat = null, layoutMode = 'full';   // API bắt được từ trang hệ thống
 if (MODE === 'bridge') {
   addEventListener('message', e => {
     if (e.source !== window.parent) return;
     const d = e.data || {};
-    if (d.type === 'ready') { bridgeOrigin = e.origin; capSupported = !!d.capture; bridgeVer = d.version || 1; CAPS = (d.log || []).slice(); PAST = d.past || []; renderMode(); initPasteTabs(); renderCaps(); }
+    if (d.type === 'ready') { bridgeOrigin = e.origin; capSupported = !!d.capture; bridgeVer = d.version || 1; bridgeStat = d.stat || null; layoutMode = d.mode || 'full'; CAPS = (d.log || []).slice(); SEEN = (d.seen || []).slice(); PAST = d.past || []; renderMode(); initPasteTabs(); renderCaps(); }
+    if (d.type === 'seen') { SEEN.push(d.item); if (SEEN.length > 300) SEEN.shift(); renderCaps(); }
+    if (d.type === 'stat') { bridgeStat = d.stat; renderCaps(); }
+    if (d.type === 'layout') { layoutMode = d.mode; renderMode(); }
     if (d.type === 'shown' && !$('#pasteCard').classList.contains('hide') && !$('#ptCap').classList.contains('hide')) showPasteTab('cap');
     if (d.type === 'cap') { CAPS.push(d.item); if (CAPS.length > 200) CAPS.shift(); renderCaps(); }
     if ((d.type === 'res' || d.type === 'token') && pendingReq[d.id]) { pendingReq[d.id](d); delete pendingReq[d.id]; }
@@ -291,12 +294,22 @@ function renderCaps() {
   nb.textContent = fresh > 0 ? `+${fresh} API mới` : ''; nb.classList.toggle('hide', !(fresh > 0));
   const tb = $('#capList'); if (!tb) return;
   const noise = CAPS.length - n;
-  $('#capDiag').innerHTML = capSupported
-    ? `${bridgeVer >= 2 ? '🟢' : '🟡'} Đang bắt API trên trang · đã thấy <b>${CAPS.length}</b> request${noise ? ` (ẩn ${noise} file tĩnh/OPTIONS)` : ''}${bridgeVer < 2 ? ' · bridge cũ — tải lại trang hệ thống (F5) rồi bấm 📌 để dùng bản mới' : ''}`
-    : '';
-  $('#pastCount').textContent = PAST.length;
-  $('#pastBox').classList.toggle('hide', !PAST.length);
-  $('#pastList').innerHTML = [...PAST].reverse().map(p => `<tr><td class="muted" style="white-space:nowrap">${new Date(p.time).toLocaleTimeString('vi-VN')}</td><td><b class="mono">${esc(capName(p))}</b><div class="muted mono" style="font-size:11.5px">${esc(p.url.length > 110 ? p.url.slice(0, 110) + '…' : p.url)}</div></td><td class="muted">${p.ms} ms</td></tr>`).join('');
+  // API trang có gọi nhưng chỉ biết địa chỉ: gọi trước khi bấm 📌, hoặc móc không bắt được nội dung
+  const capUrls = new Set(CAPS.map(c => c.url)), miss = SEEN.filter(s => !capUrls.has(s.url));
+  const st = bridgeStat, oldBridge = bridgeVer < 3;
+  let diag = '';
+  if (capSupported) {
+    diag = `${oldBridge ? '🟡' : st && st.xhr ? '🟢' : '🔴'} ${oldBridge ? 'Bản bắt API cũ — F5 trang hệ thống rồi bấm 📌 để dùng bản mới' : 'Đang bắt API trên trang'}`
+      + ` · bắt được nội dung <b>${n}</b> API${SEEN.length ? ` / trang đã gọi <b>${SEEN.length}</b>` : ''}${noise ? ` · ẩn ${noise} file tĩnh/OPTIONS` : ''}`;
+    if (SEEN.length >= 2 && miss.length >= SEEN.length * 0.8)
+      diag += `<div class="note n-bad">⚠ Trang có gọi API nhưng tool <b>không đọc được nội dung</b> (body/token). Chụp màn hình khung này gửi người làm tool. Tạm thời dùng tab <b>📋 Dán thủ công</b>.
+        <div style="font-size:11.5px;margin-top:4px" class="mono">chẩn đoán: v${bridgeVer} · xhr=${st && st.xhr} · fetch=${st && st.fetch} · gắn móc ${st ? st.installs : '?'} lần · thấy ${SEEN.length} · bắt ${n}</div></div>`;
+  }
+  $('#capDiag').innerHTML = diag;
+  const urlOnly = [...PAST, ...miss];
+  $('#pastCount').textContent = urlOnly.length;
+  $('#pastBox').classList.toggle('hide', !urlOnly.length);
+  $('#pastList').innerHTML = [...urlOnly].reverse().map(p => `<tr><td class="muted" style="white-space:nowrap">${new Date(p.time).toLocaleTimeString('vi-VN')}</td><td><b class="mono">${esc(capName(p))}</b><div class="muted mono" style="font-size:11.5px">${esc(p.url.length > 110 ? p.url.slice(0, 110) + '…' : p.url)}</div></td><td class="muted">${p.ms} ms</td></tr>`).join('');
   if (!capSupported) { tb.innerHTML = `<tr><td colspan="5" class="empty">Bookmark 📌 bạn đang dùng là bản cũ, chưa bắt được API.<br>Mở <a href="${esc(location.href.split('?')[0])}" target="_blank">trang tool</a>, kéo lại nút <b>📌 API Soi</b> mới lên thanh dấu trang (thay cái cũ).</td></tr>`; return; }
   const rows = capRows();
   tb.innerHTML = rows.length ? rows.map(({c, i, n}) => {
@@ -345,8 +358,12 @@ function renderMode() {
   const m = $('#modeBar');
   if (MODE === 'bridge') {
     m.className = 'modebar ' + (bridgeOrigin ? 'n-ok' : 'n-warn');
-    m.innerHTML = bridgeOrigin ? `🔗 Đang chạy trên <b>${esc(bridgeOrigin)}</b> — gọi API bằng phiên đăng nhập của trang này. <span class="grow"></span><button id="btnClose">✕ Thu nhỏ tool</button><span class="muted" style="font-size:12px">(mở lại bằng nút nổi góc phải hoặc bookmark)</span>` : '⏳ Đang kết nối với trang hệ thống…';
+    const lm = (k, label, tip) => bridgeVer >= 3 ? `<button data-lm="${k}" class="${layoutMode === k ? 'on' : ''}" title="${tip}">${label}</button>` : '';
+    m.innerHTML = bridgeOrigin ? `🔗 Đang chạy trên <b>${esc(bridgeOrigin)}</b> <span class="grow"></span>
+      <div class="seg">${lm('split', '◧ Chia đôi', 'Hệ thống bên trái, tool bên phải — kéo vạch tím để đổi độ rộng')}${lm('full', '⛶ Toàn màn hình', 'Tool che hết màn hình')}</div>
+      <button id="btnClose" title="Thu tool thành nút nổi góc phải">— Thu nhỏ</button>` : '⏳ Đang kết nối với trang hệ thống…';
     const c = $('#btnClose'); if (c) c.onclick = () => window.parent.postMessage({type: 'close'}, bridgeOrigin);
+    $$('#modeBar [data-lm]').forEach(b => b.onclick = () => window.parent.postMessage({type: 'layout', mode: b.dataset.lm}, bridgeOrigin));
   } else if (MODE === 'local') {
     m.className = 'modebar n-info'; m.innerHTML = '💻 Đang chạy trên máy (Chay_API_Soi.bat) — gọi được mọi API.';
   } else if (location.protocol === 'file:') {
@@ -1284,7 +1301,11 @@ $('#btnNewPaste').onclick = () => {
 $('#btnCancelPaste').onclick = () => $('#pasteCard').classList.add('hide');
 $$('#pasteTabs [data-pt]').forEach(b => b.onclick = () => showPasteTab(b.dataset.pt));
 $('#capQ').oninput = renderCaps; $('#capDedup').onchange = renderCaps;
-$('#btnCapture').onclick = () => { if (bridgeOrigin) window.parent.postMessage({type: 'close'}, bridgeOrigin); };
+$('#btnCapture').onclick = () => {
+  if (!bridgeOrigin) return;
+  if (bridgeVer >= 3) { window.parent.postMessage({type: 'layout', mode: 'split'}, bridgeOrigin); showPasteTab('cap'); }
+  else window.parent.postMessage({type: 'close'}, bridgeOrigin);
+};
 $('#capClear').onclick = () => { CAPS = []; capSeen = 0; renderCaps(); };
 $('#capList').onclick = e => { const b = e.target.closest('[data-cap]'); if (b) loadCap(+b.dataset.cap); };
 initPasteTabs();
